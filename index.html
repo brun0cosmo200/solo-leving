@@ -1,0 +1,2395 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistema de Caçadores — App</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&family=Sora:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+/* ============================================================
+   DESIGN TOKENS — herdados do design system (etapa1)
+   ============================================================ */
+:root{
+  --c-void:        #06050a;
+  --c-abyss:       #0d0a16;
+  --c-abyss-2:     #150f24;
+
+  --c-violet-core: #b341ff;
+  --c-violet-deep: #5b1e96;
+  --c-violet-dim:  #2a1145;
+
+  --c-crimson-core:#ff2b4e;
+  --c-crimson-deep:#7a0e1f;
+
+  --c-azure-core:  #2fd8ff;
+  --c-azure-deep:  #0a4f66;
+
+  --c-gold-core:   #ffd24c;
+  --c-gold-deep:   #9c6f12;
+
+  --c-text:        #ece7f5;
+  --c-text-dim:    #948da6;
+  --c-text-faint:  #564f6b;
+  --c-border-faint: rgba(179,65,255,0.18);
+
+  --font-display: 'Orbitron', sans-serif;
+  --font-heading: 'Rajdhani', sans-serif;
+  --font-body:    'Sora', sans-serif;
+
+  --fs-xs:  0.72rem;
+  --fs-sm:  0.875rem;
+  --fs-base:1rem;
+  --fs-md:  1.25rem;
+  --fs-lg:  1.75rem;
+  --fs-xl:  2.5rem;
+
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px;
+  --sp-5:24px; --sp-6:32px; --sp-7:48px; --sp-8:64px;
+
+  --glow-violet:  0 0 8px rgba(179,65,255,.65), 0 0 24px rgba(179,65,255,.3);
+  --glow-azure:   0 0 8px rgba(47,216,255,.65),  0 0 24px rgba(47,216,255,.3);
+  --glow-crimson: 0 0 8px rgba(255,43,78,.65),   0 0 24px rgba(255,43,78,.3);
+  --glow-gold:    0 0 8px rgba(255,210,76,.7),   0 0 24px rgba(255,210,76,.35);
+
+  --shadow-panel: 0 8px 32px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.03);
+  --cut: 10px;
+
+  --dur-fast: 150ms;
+  --dur-base: 250ms;
+  --dur-slow: 500ms;
+  --ease-out: cubic-bezier(.16,1,.3,1);
+
+  /* layout */
+  --sidebar-w: 200px;
+  --header-h:  58px;
+  --hotbar-h:  68px;
+}
+
+/* ============================================================
+   RESET & BASE
+   ============================================================ */
+*{ margin:0; padding:0; box-sizing:border-box; }
+html{ scroll-behavior:smooth; }
+body{
+  background: var(--c-void);
+  color: var(--c-text);
+  font-family: var(--font-body);
+  font-size: var(--fs-base);
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+h1,h2,h3,h4{ font-family: var(--font-heading); font-weight:600; letter-spacing:.02em; }
+a{ color: var(--c-azure-core); text-decoration:none; }
+::selection{ background: var(--c-violet-core); color:#fff; }
+:focus-visible{ outline: 2px solid var(--c-azure-core); outline-offset:3px; }
+@media (prefers-reduced-motion: reduce){
+  *{ animation-duration:.001ms !important; transition-duration:.001ms !important; }
+}
+
+/* ============================================================
+   PARTÍCULAS
+   ============================================================ */
+.particles{ position:fixed; inset:0; pointer-events:none; z-index:0; overflow:hidden; }
+.particle{
+  position:absolute; width:2px; height:2px;
+  background: var(--c-violet-core); border-radius:50%; opacity:.4;
+  box-shadow: 0 0 4px var(--c-violet-core);
+  animation: drift linear infinite;
+}
+@keyframes drift{
+  0%  { transform:translateY(0) translateX(0); opacity:0; }
+  10% { opacity:.5; }
+  90% { opacity:.3; }
+  100%{ transform:translateY(-100vh) translateX(16px); opacity:0; }
+}
+
+/* ============================================================
+   SHELL — ESTRUTURA PRINCIPAL
+   ============================================================ */
+.shell{
+  display: grid;
+  grid-template-columns: var(--sidebar-w) 1fr;
+  grid-template-rows: var(--header-h) 1fr;
+  min-height: 100vh;
+  position: relative;
+  z-index:1;
+}
+
+/* ============================================================
+   HEADER GLOBAL
+   ============================================================ */
+.app-header{
+  grid-column: 1 / -1;
+  grid-row: 1;
+  position: sticky; top:0; z-index:100;
+  display: flex; align-items:center; gap: var(--sp-4);
+  padding: 0 var(--sp-5);
+  background: linear-gradient(180deg, rgba(13,10,22,.98), rgba(13,10,22,.88));
+  border-bottom: 1px solid var(--c-border-faint);
+  backdrop-filter: blur(8px);
+}
+
+.app-header__brand{
+  font-family: var(--font-display);
+  font-size: var(--fs-xs);
+  letter-spacing:.12em;
+  color: var(--c-text);
+  white-space: nowrap;
+}
+.app-header__brand span{ color: var(--c-violet-core); }
+
+.app-header__divider{
+  width:1px; height:28px;
+  background: var(--c-border-faint);
+}
+
+/* Barra de status do player no header */
+.player-hud{
+  display:flex; align-items:center; gap: var(--sp-4);
+  flex:1;
+}
+
+.player-hud__info{
+  display:flex; flex-direction:column; gap:2px;
+}
+.player-hud__name{
+  font-family: var(--font-heading);
+  font-size: var(--fs-sm);
+  font-weight:700;
+  color: var(--c-text);
+}
+.player-hud__sub{
+  font-family: var(--font-heading);
+  font-size: var(--fs-xs);
+  color: var(--c-violet-core);
+  letter-spacing:.06em;
+  text-transform: uppercase;
+}
+
+.player-hud__bars{
+  display:flex; flex-direction:column; gap:4px;
+  flex:1; max-width:220px;
+}
+.mini-bar{ display:flex; align-items:center; gap: var(--sp-2); }
+.mini-bar__label{
+  font-family: var(--font-heading);
+  font-size: var(--fs-xs);
+  color: var(--c-text-faint);
+  width:18px;
+  letter-spacing:.04em;
+}
+.mini-bar__track{
+  flex:1; height:8px;
+  background: rgba(255,255,255,.05);
+  border: 1px solid rgba(255,255,255,.06);
+  clip-path: polygon(4px 0,100% 0,100% calc(100% - 4px),calc(100% - 4px) 100%,0 100%,0 4px);
+}
+.mini-bar__fill{ height:100%; }
+.mini-bar--hp .mini-bar__fill{ background: linear-gradient(90deg,var(--c-crimson-deep),var(--c-crimson-core)); width:72%; }
+.mini-bar--mp .mini-bar__fill{ background: linear-gradient(90deg,var(--c-azure-deep),var(--c-azure-core)); width:60%; }
+.mini-bar--xp .mini-bar__fill{ background: linear-gradient(90deg,var(--c-violet-deep),var(--c-gold-core)); width:38%; }
+
+/* Rank badge no header */
+.rank-hex{
+  width:38px; height:44px;
+  display:flex; align-items:center; justify-content:center;
+  clip-path: polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);
+  font-family: var(--font-display); font-weight:700; font-size: var(--fs-sm);
+  background: var(--c-violet-deep);
+  border:1px solid var(--c-violet-core);
+  color: var(--c-violet-core);
+  box-shadow: var(--glow-violet);
+}
+
+.app-header__actions{
+  display:flex; align-items:center; gap: var(--sp-3);
+  margin-left: auto;
+}
+.hdr-btn{
+  font-family: var(--font-heading); font-size: var(--fs-xs);
+  letter-spacing:.06em; text-transform:uppercase;
+  color: var(--c-text-dim);
+  background: transparent;
+  border: 1px solid var(--c-border-faint);
+  padding: var(--sp-1) var(--sp-3);
+  cursor:pointer;
+  clip-path: polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px);
+  transition: color var(--dur-fast), border-color var(--dur-fast), box-shadow var(--dur-fast);
+}
+.hdr-btn:hover{ color: var(--c-text); border-color: var(--c-violet-core); box-shadow: var(--glow-violet); }
+
+.notif-dot{
+  position:relative;
+}
+.notif-dot::after{
+  content:'';
+  position:absolute; top:-3px; right:-3px;
+  width:7px; height:7px; border-radius:50%;
+  background: var(--c-crimson-core);
+  box-shadow: var(--glow-crimson);
+}
+
+/* ============================================================
+   SIDEBAR — NAVEGAÇÃO PRINCIPAL
+   ============================================================ */
+.app-sidebar{
+  grid-column: 1;
+  grid-row: 2;
+  position: sticky; top: var(--header-h);
+  height: calc(100vh - var(--header-h));
+  overflow-y: auto;
+  display: flex; flex-direction:column;
+  padding: var(--sp-5) var(--sp-3) var(--sp-8);
+  border-right: 1px solid rgba(179,65,255,.1);
+  background: linear-gradient(180deg, rgba(13,10,22,.5), transparent);
+  z-index:10;
+}
+
+.sidebar-section{
+  margin-bottom: var(--sp-5);
+}
+.sidebar-label{
+  font-family: var(--font-heading);
+  font-size: var(--fs-xs);
+  letter-spacing:.18em;
+  text-transform: uppercase;
+  color: var(--c-text-faint);
+  padding: 0 var(--sp-3);
+  margin-bottom: var(--sp-2);
+}
+.sidebar-nav{ display:flex; flex-direction:column; gap:2px; }
+
+.nav-item{
+  display: flex; align-items:center; gap: var(--sp-3);
+  font-family: var(--font-heading);
+  font-size: var(--fs-sm);
+  font-weight:600;
+  color: var(--c-text-dim);
+  padding: var(--sp-2) var(--sp-3);
+  border-left: 2px solid transparent;
+  border-radius: 0 4px 4px 0;
+  cursor: pointer;
+  transition: color var(--dur-fast), border-color var(--dur-fast), background var(--dur-fast);
+  user-select:none;
+}
+.nav-item:hover{
+  color: var(--c-text);
+  background: rgba(179,65,255,.06);
+}
+.nav-item.active{
+  color: var(--c-violet-core);
+  border-left-color: var(--c-violet-core);
+  background: rgba(179,65,255,.1);
+}
+.nav-item__icon{ font-size: var(--fs-base); width:20px; text-align:center; }
+.nav-item__badge{
+  margin-left: auto;
+  font-family: var(--font-display);
+  font-size: 0.65rem;
+  color: var(--c-crimson-core);
+  background: rgba(255,43,78,.12);
+  border: 1px solid var(--c-crimson-core);
+  padding: 0 5px;
+  border-radius:2px;
+}
+
+/* ============================================================
+   HOTBAR — MENU GAMER (barra inferior de ação rápida)
+   ============================================================ */
+.app-hotbar{
+  position: fixed; bottom:0; left: var(--sidebar-w); right:0;
+  height: var(--hotbar-h);
+  z-index:50;
+  display: flex; align-items:center; justify-content:center;
+  gap: var(--sp-2);
+  padding: 0 var(--sp-5);
+  background: linear-gradient(0deg, rgba(6,5,10,.98) 60%, rgba(6,5,10,.7));
+  border-top: 1px solid var(--c-border-faint);
+  backdrop-filter: blur(10px);
+}
+
+.hotbar-slot{
+  display: flex; flex-direction:column; align-items:center; gap:3px;
+  padding: var(--sp-2) var(--sp-4);
+  cursor:pointer;
+  border: 1px solid transparent;
+  clip-path: polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px);
+  transition: all var(--dur-fast) var(--ease-out);
+  position: relative;
+}
+.hotbar-slot:hover{
+  background: rgba(179,65,255,.08);
+  border-color: rgba(179,65,255,.3);
+}
+.hotbar-slot.active{
+  background: rgba(179,65,255,.14);
+  border-color: var(--c-violet-core);
+  box-shadow: var(--glow-violet);
+}
+.hotbar-slot__icon{ font-size:1.3rem; line-height:1; }
+.hotbar-slot__label{
+  font-family: var(--font-heading);
+  font-size: 0.62rem;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color: var(--c-text-dim);
+}
+.hotbar-slot.active .hotbar-slot__label{ color: var(--c-violet-core); }
+
+.hotbar-slot__num{
+  position:absolute; top:4px; right:8px;
+  font-family: var(--font-display);
+  font-size: 0.55rem;
+  color: var(--c-text-faint);
+}
+
+.hotbar-sep{
+  width:1px; height:32px;
+  background: var(--c-border-faint);
+  margin: 0 var(--sp-1);
+}
+
+.hotbar-slot--more .hotbar-slot__icon{ color: var(--c-text-faint); }
+
+/* More menu overlay */
+.more-menu{
+  position:fixed; bottom: calc(var(--hotbar-h) + 8px);
+  left: 50%; transform: translateX(-50%);
+  background: var(--c-abyss);
+  border: 1px solid var(--c-border-faint);
+  box-shadow: var(--shadow-panel), var(--glow-violet);
+  clip-path: polygon(var(--cut) 0,calc(100% - var(--cut)) 0,100% var(--cut),100% calc(100% - var(--cut)),calc(100% - var(--cut)) 100%,var(--cut) 100%,0 calc(100% - var(--cut)),0 var(--cut));
+  padding: var(--sp-4);
+  display: grid; grid-template-columns: repeat(3,1fr); gap: var(--sp-3);
+  z-index:200;
+  opacity:0; pointer-events:none;
+  transform: translateX(-50%) translateY(8px);
+  transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out);
+}
+.more-menu.open{
+  opacity:1; pointer-events:all;
+  transform: translateX(-50%) translateY(0);
+}
+.more-item{
+  display:flex; flex-direction:column; align-items:center; gap:4px;
+  font-family: var(--font-heading);
+  font-size: var(--fs-xs);
+  letter-spacing:.06em;
+  text-transform: uppercase;
+  color: var(--c-text-dim);
+  padding: var(--sp-3) var(--sp-4);
+  border:1px solid transparent;
+  cursor:pointer;
+  clip-path: polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px);
+  transition: all var(--dur-fast);
+}
+.more-item:hover{ color:var(--c-text); border-color: var(--c-border-faint); background: rgba(255,255,255,.03); }
+.more-item__icon{ font-size:1.4rem; }
+
+/* ============================================================
+   CONTEÚDO PRINCIPAL
+   ============================================================ */
+.app-main{
+  grid-column: 2;
+  grid-row: 2;
+  padding: var(--sp-6) var(--sp-6) calc(var(--hotbar-h) + var(--sp-6));
+  min-height: calc(100vh - var(--header-h));
+  overflow-y: auto;
+}
+
+/* ============================================================
+   VIEWS — mostrar/esconder
+   ============================================================ */
+.view{ display:none; animation: viewIn var(--dur-base) var(--ease-out) both; }
+.view.active{ display:block; }
+@keyframes viewIn{
+  from{ opacity:0; transform: translateY(6px); }
+  to  { opacity:1; transform: translateY(0); }
+}
+
+/* ============================================================
+   PAGE HEADER (dentro de cada view)
+   ============================================================ */
+.page-header{
+  display:flex; align-items:flex-start; justify-content:space-between;
+  margin-bottom: var(--sp-6);
+  padding-bottom: var(--sp-5);
+  border-bottom: 1px solid var(--c-border-faint);
+}
+.page-header__left{}
+
+.page-eyebrow{
+  font-family: var(--font-heading);
+  font-size: var(--fs-xs);
+  letter-spacing:.2em;
+  text-transform:uppercase;
+  color: var(--c-violet-core);
+  margin-bottom: var(--sp-1);
+}
+.page-title{
+  font-family: var(--font-display);
+  font-size: var(--fs-lg);
+  font-weight:700;
+  color: var(--c-text);
+}
+.page-sub{
+  font-family: var(--font-body);
+  font-size: var(--fs-sm);
+  color: var(--c-text-dim);
+  margin-top: var(--sp-1);
+}
+.page-header__actions{ display:flex; gap: var(--sp-3); align-items:center; }
+
+/* ============================================================
+   GRIDS
+   ============================================================ */
+.g2{ display:grid; grid-template-columns:1fr 1fr; gap: var(--sp-5); }
+.g3{ display:grid; grid-template-columns:repeat(3,1fr); gap: var(--sp-5); }
+.g4{ display:grid; grid-template-columns:repeat(4,1fr); gap: var(--sp-4); }
+.ga{ display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap: var(--sp-4); }
+.col-2-1{ display:grid; grid-template-columns:2fr 1fr; gap: var(--sp-5); }
+.col-1-2{ display:grid; grid-template-columns:1fr 2fr; gap: var(--sp-5); }
+
+/* ============================================================
+   SYSTEM PANEL (assinatura visual — cantos cortados)
+   ============================================================ */
+.panel{
+  background: linear-gradient(160deg, var(--c-abyss), var(--c-abyss-2));
+  box-shadow: var(--shadow-panel);
+  clip-path: polygon(var(--cut) 0,calc(100% - var(--cut)) 0,100% var(--cut),100% calc(100% - var(--cut)),calc(100% - var(--cut)) 100%,var(--cut) 100%,0 calc(100% - var(--cut)),0 var(--cut));
+  border: 1px solid var(--c-border-faint);
+  margin-bottom: var(--sp-5);
+}
+.panel--crimson{ border-color: rgba(255,43,78,.3); }
+.panel--gold{ border-color: rgba(255,210,76,.3); }
+.panel--azure{ border-color: rgba(47,216,255,.25); }
+
+.panel__hdr{
+  display:flex; align-items:center; justify-content:space-between;
+  padding: var(--sp-3) var(--sp-5);
+  border-bottom: 1px solid var(--c-border-faint);
+  font-family: var(--font-heading);
+  font-size: var(--fs-xs);
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  color: var(--c-violet-core);
+}
+.panel--crimson .panel__hdr{ color: var(--c-crimson-core); border-bottom-color: rgba(255,43,78,.2); }
+.panel--gold    .panel__hdr{ color: var(--c-gold-core);    border-bottom-color: rgba(255,210,76,.2); }
+.panel--azure   .panel__hdr{ color: var(--c-azure-core);   border-bottom-color: rgba(47,216,255,.2); }
+
+.panel__dot{
+  width:7px; height:7px; border-radius:50%;
+  background: var(--c-violet-core); box-shadow: var(--glow-violet);
+}
+.panel--crimson .panel__dot{ background: var(--c-crimson-core); box-shadow: var(--glow-crimson); }
+.panel--gold    .panel__dot{ background: var(--c-gold-core);    box-shadow: var(--glow-gold); }
+.panel--azure   .panel__dot{ background: var(--c-azure-core);   box-shadow: var(--glow-azure); }
+
+.panel__body{ padding: var(--sp-5); }
+.panel__footer{
+  padding: var(--sp-3) var(--sp-5);
+  border-top: 1px solid var(--c-border-faint);
+  font-family: var(--font-heading);
+  font-size: var(--fs-xs);
+  color: var(--c-text-faint);
+  display:flex; justify-content:space-between;
+}
+
+/* ============================================================
+   BOTÕES
+   ============================================================ */
+.btn{
+  font-family: var(--font-heading); font-weight:600;
+  font-size: var(--fs-sm); letter-spacing:.04em; text-transform:uppercase;
+  color: var(--c-text); background:transparent;
+  border: 1px solid currentColor;
+  padding: var(--sp-2) var(--sp-5);
+  cursor:pointer;
+  clip-path: polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px);
+  transition: box-shadow var(--dur-base) var(--ease-out), background var(--dur-base) var(--ease-out), transform var(--dur-fast);
+}
+.btn:active{ transform:scale(.97); }
+.btn--primary{ color:var(--c-violet-core); }
+.btn--primary:hover{ background:rgba(179,65,255,.12); box-shadow:var(--glow-violet); }
+.btn--skill{ color:var(--c-azure-core); }
+.btn--skill:hover{ background:rgba(47,216,255,.12); box-shadow:var(--glow-azure); }
+.btn--danger{ color:var(--c-crimson-core); }
+.btn--danger:hover{ background:rgba(255,43,78,.12); box-shadow:var(--glow-crimson); }
+.btn--legendary{ color:var(--c-void); background:linear-gradient(135deg,var(--c-gold-core),var(--c-gold-deep)); border-color:var(--c-gold-core); }
+.btn--legendary:hover{ box-shadow:var(--glow-gold); filter:brightness(1.08); }
+.btn--sm{ padding: var(--sp-1) var(--sp-3); font-size: var(--fs-xs); }
+
+/* ============================================================
+   CARDS DE ITEM
+   ============================================================ */
+.item-card{
+  background: linear-gradient(160deg,var(--c-abyss),var(--c-abyss-2));
+  border:1px solid var(--c-text-faint);
+  clip-path: polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px);
+  padding: var(--sp-4);
+  display:flex; flex-direction:column; gap: var(--sp-2);
+  cursor:pointer;
+  transition: border-color var(--dur-base), box-shadow var(--dur-base);
+}
+.item-card--raro  { border-color: var(--c-azure-deep); }
+.item-card--epico { border-color: var(--c-violet-deep); }
+.item-card--lend  { border-color: var(--c-gold-deep); }
+.item-card:hover  { box-shadow: var(--glow-violet); border-color: var(--c-violet-core); }
+.item-card--lend:hover{ box-shadow: var(--glow-gold); border-color: var(--c-gold-core); }
+.item-card__icon{ font-size:2rem; text-align:center; color: var(--c-text-dim); }
+.item-card__name{ font-family:var(--font-heading); font-size:var(--fs-sm); font-weight:600; text-align:center; }
+.item-card__tag{
+  font-family:var(--font-heading); font-size:var(--fs-xs); letter-spacing:.06em;
+  text-transform:uppercase; text-align:center;
+  color:var(--c-text-faint);
+}
+.item-card--raro  .item-card__tag{ color:var(--c-azure-core); }
+.item-card--epico .item-card__tag{ color:var(--c-violet-core); }
+.item-card--lend  .item-card__tag{ color:var(--c-gold-core); }
+
+/* ============================================================
+   BARRAS DE STATUS
+   ============================================================ */
+.stat-bar{ margin-bottom: var(--sp-3); }
+.stat-bar__label{
+  display:flex; justify-content:space-between;
+  font-family:var(--font-heading); font-size:var(--fs-xs);
+  text-transform:uppercase; letter-spacing:.08em;
+  color:var(--c-text-dim); margin-bottom:3px;
+}
+.stat-bar__track{
+  height:12px; background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.07);
+  clip-path: polygon(4px 0,100% 0,100% calc(100% - 4px),calc(100% - 4px) 100%,0 100%,0 4px);
+}
+.stat-bar__fill{ height:100%; }
+.stat-bar--hp .stat-bar__fill{ background:linear-gradient(90deg,var(--c-crimson-deep),var(--c-crimson-core)); }
+.stat-bar--mp .stat-bar__fill{ background:linear-gradient(90deg,var(--c-azure-deep),var(--c-azure-core)); }
+.stat-bar--xp .stat-bar__fill{ background:linear-gradient(90deg,var(--c-violet-deep),var(--c-gold-core)); }
+.stat-bar--str .stat-bar__fill{ background:linear-gradient(90deg,var(--c-violet-deep),var(--c-violet-core)); }
+
+/* ============================================================
+   TAGS / BADGES INLINE
+   ============================================================ */
+.tag{
+  display:inline-flex; align-items:center;
+  font-family:var(--font-heading); font-size: var(--fs-xs);
+  letter-spacing:.06em; text-transform:uppercase;
+  padding: 2px var(--sp-2);
+  border-radius:2px;
+}
+.tag--violet{ color:var(--c-violet-core); background:rgba(179,65,255,.12); border:1px solid rgba(179,65,255,.3); }
+.tag--azure { color:var(--c-azure-core);  background:rgba(47,216,255,.1);  border:1px solid rgba(47,216,255,.3); }
+.tag--crimson{ color:var(--c-crimson-core); background:rgba(255,43,78,.1); border:1px solid rgba(255,43,78,.3); }
+.tag--gold  { color:var(--c-gold-core);   background:rgba(255,210,76,.1);  border:1px solid rgba(255,210,76,.3); }
+.tag--dim   { color:var(--c-text-faint);  background:rgba(255,255,255,.03); border:1px solid var(--c-border-faint); }
+
+/* ============================================================
+   RANK HEXÁGONO (inline)
+   ============================================================ */
+.rank-badge{
+  display:inline-flex; align-items:center; justify-content:center;
+  width:36px; height:42px;
+  clip-path: polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);
+  font-family:var(--font-display); font-weight:700; font-size:var(--fs-xs);
+}
+.rank-badge--e { background:var(--c-abyss); color:var(--c-text-faint); }
+.rank-badge--d { background:var(--c-azure-deep); color:var(--c-text); }
+.rank-badge--c { background:var(--c-azure-deep); color:var(--c-azure-core); box-shadow:var(--glow-azure); }
+.rank-badge--b { background:var(--c-violet-deep); color:var(--c-text); }
+.rank-badge--a { background:var(--c-violet-deep); color:var(--c-violet-core); box-shadow:var(--glow-violet); }
+.rank-badge--s { background:var(--c-crimson-deep); color:var(--c-crimson-core); box-shadow:var(--glow-crimson); }
+.rank-badge--n { background:var(--c-gold-deep); color:var(--c-gold-core); box-shadow:var(--glow-gold); }
+
+/* ============================================================
+   TABELA
+   ============================================================ */
+.data-table{ width:100%; border-collapse:collapse; }
+.data-table th{
+  font-family:var(--font-heading); font-size:var(--fs-xs);
+  letter-spacing:.12em; text-transform:uppercase;
+  color:var(--c-text-faint);
+  padding: var(--sp-2) var(--sp-4);
+  border-bottom: 1px solid var(--c-border-faint);
+  text-align:left; font-weight:600;
+}
+.data-table td{
+  font-family:var(--font-body); font-size:var(--fs-sm);
+  color:var(--c-text-dim);
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid rgba(255,255,255,.03);
+}
+.data-table tr:hover td{ background: rgba(179,65,255,.04); color:var(--c-text); }
+
+/* ============================================================
+   LISTA DE MISSÕES
+   ============================================================ */
+.mission-item{
+  display:flex; align-items:center; gap: var(--sp-4);
+  padding: var(--sp-4) var(--sp-5);
+  border-bottom: 1px solid rgba(255,255,255,.04);
+  cursor:pointer;
+  transition: background var(--dur-fast);
+}
+.mission-item:hover{ background: rgba(179,65,255,.05); }
+.mission-item__icon{ font-size:1.4rem; width:32px; text-align:center; }
+.mission-item__info{ flex:1; }
+.mission-item__name{ font-family:var(--font-heading); font-size:var(--fs-base); font-weight:600; }
+.mission-item__desc{ font-size:var(--fs-xs); color:var(--c-text-dim); margin-top:2px; }
+.mission-item__meta{ display:flex; flex-direction:column; align-items:flex-end; gap:4px; }
+
+/* ============================================================
+   MAPA — PLACEHOLDER
+   ============================================================ */
+.map-placeholder{
+  width:100%; aspect-ratio:16/9; max-height:380px;
+  background: linear-gradient(135deg, rgba(13,10,22,1) 0%, rgba(42,17,69,.6) 50%, rgba(13,10,22,1) 100%);
+  border: 1px solid var(--c-border-faint);
+  display:flex; align-items:center; justify-content:center;
+  position:relative; overflow:hidden;
+  clip-path: polygon(var(--cut) 0,calc(100% - var(--cut)) 0,100% var(--cut),100% calc(100% - var(--cut)),calc(100% - var(--cut)) 100%,var(--cut) 100%,0 calc(100% - var(--cut)),0 var(--cut));
+}
+.map-placeholder__label{
+  font-family:var(--font-display); font-size:var(--fs-sm);
+  letter-spacing:.2em; color: rgba(179,65,255,.4);
+  text-transform:uppercase; text-align:center;
+}
+.map-node{
+  position:absolute; width:10px; height:10px; border-radius:50%;
+  background: var(--c-violet-core); box-shadow: var(--glow-violet);
+  cursor:pointer;
+}
+.map-node--boss{ background:var(--c-crimson-core); box-shadow:var(--glow-crimson); width:14px; height:14px; }
+.map-node--safe{ background:var(--c-azure-core); box-shadow:var(--glow-azure); }
+.map-line{
+  position:absolute; background: rgba(179,65,255,.2); height:1px;
+  transform-origin: left center;
+}
+
+/* ============================================================
+   LOADING RING
+   ============================================================ */
+.ring-loader{
+  width:56px; height:56px; border-radius:50%;
+  border:2px solid rgba(179,65,255,.12);
+  border-top-color:var(--c-violet-core);
+  border-right-color:var(--c-crimson-core);
+  box-shadow:var(--glow-violet);
+  animation:spin 1.1s linear infinite;
+}
+@keyframes spin{ to{ transform:rotate(360deg); } }
+
+/* ============================================================
+   PAGE FOOTER (dentro de cada view)
+   ============================================================ */
+.page-footer{
+  margin-top: var(--sp-7);
+  padding-top: var(--sp-4);
+  border-top: 1px solid rgba(255,255,255,.04);
+  display:flex; align-items:center; justify-content:space-between;
+  font-family:var(--font-heading);
+  font-size:var(--fs-xs);
+  letter-spacing:.06em;
+  color: var(--c-text-faint);
+}
+.page-footer__status{ display:flex; align-items:center; gap: var(--sp-2); }
+.status-dot{ width:6px; height:6px; border-radius:50%; background:var(--c-azure-core); box-shadow:var(--glow-azure); }
+
+/* ============================================================
+   UTILITÁRIOS
+   ============================================================ */
+.mb2{ margin-bottom: var(--sp-2); }
+.mb3{ margin-bottom: var(--sp-3); }
+.mb4{ margin-bottom: var(--sp-4); }
+.mb5{ margin-bottom: var(--sp-5); }
+.mt4{ margin-top: var(--sp-4); }
+.flex-between{ display:flex; justify-content:space-between; align-items:center; }
+.flex-gap2{ display:flex; gap: var(--sp-2); align-items:center; }
+.flex-gap3{ display:flex; gap: var(--sp-3); align-items:center; }
+.text-dim{ color: var(--c-text-dim); }
+.text-faint{ color: var(--c-text-faint); }
+.text-violet{ color: var(--c-violet-core); }
+.text-azure{ color: var(--c-azure-core); }
+.text-gold{ color: var(--c-gold-core); }
+.text-crimson{ color: var(--c-crimson-core); }
+.font-display{ font-family:var(--font-display); }
+.font-heading{ font-family:var(--font-heading); }
+.fs-xs{ font-size: var(--fs-xs); }
+.fs-sm{ font-size: var(--fs-sm); }
+.fs-lg{ font-size: var(--fs-lg); }
+.uppercase{ text-transform:uppercase; letter-spacing:.08em; }
+.divider{ border:none; border-top:1px solid rgba(255,255,255,.04); margin: var(--sp-4) 0; }
+
+/* NPC / Bestiário card */
+.entity-card{
+  display:flex; gap: var(--sp-4); align-items:flex-start;
+  padding: var(--sp-4);
+  border-bottom: 1px solid rgba(255,255,255,.04);
+  cursor:pointer;
+  transition: background var(--dur-fast);
+}
+.entity-card:hover{ background: rgba(179,65,255,.05); }
+.entity-card__avatar{
+  width:52px; height:52px; border-radius:4px;
+  background: linear-gradient(135deg,var(--c-abyss-2),var(--c-void));
+  border:1px solid var(--c-border-faint);
+  display:flex; align-items:center; justify-content:center;
+  font-size:1.6rem; flex-shrink:0;
+}
+.entity-card__info{ flex:1; }
+.entity-card__name{ font-family:var(--font-heading); font-size:var(--fs-base); font-weight:600; }
+.entity-card__meta{ font-size:var(--fs-xs); color:var(--c-text-dim); margin-top:2px; }
+.entity-card__tags{ display:flex; gap:var(--sp-2); margin-top:var(--sp-2); flex-wrap:wrap; }
+.entity-card__aside{ display:flex; flex-direction:column; align-items:flex-end; gap:var(--sp-2); }
+
+/* Membro de guilda */
+.member-row{
+  display:flex; align-items:center; gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-5);
+  border-bottom:1px solid rgba(255,255,255,.04);
+  transition: background var(--dur-fast);
+}
+.member-row:hover{ background: rgba(179,65,255,.04); }
+.member-avatar{
+  width:36px; height:36px;
+  border-radius:50%;
+  background: linear-gradient(135deg,var(--c-violet-deep),var(--c-abyss));
+  border:1px solid var(--c-border-faint);
+  display:flex; align-items:center; justify-content:center;
+  font-size:1rem; flex-shrink:0;
+}
+.member-name{ font-family:var(--font-heading); font-size:var(--fs-sm); font-weight:600; }
+.member-rank-title{ font-size:var(--fs-xs); color:var(--c-text-faint); margin-top:1px; }
+.member-contrib{ margin-left:auto; font-family:var(--font-display); font-size:var(--fs-xs); color:var(--c-gold-core); }
+
+/* Config row */
+.config-row{
+  display:flex; align-items:center; justify-content:space-between;
+  padding: var(--sp-4) 0;
+  border-bottom:1px solid rgba(255,255,255,.04);
+}
+.config-row__info{}
+.config-row__label{ font-family:var(--font-heading); font-size:var(--fs-sm); font-weight:600; }
+.config-row__desc{ font-size:var(--fs-xs); color:var(--c-text-faint); margin-top:2px; }
+.toggle{
+  width:40px; height:22px; border-radius:11px;
+  background: rgba(255,255,255,.07); border:1px solid var(--c-border-faint);
+  position:relative; cursor:pointer; flex-shrink:0;
+}
+.toggle.on{ background:rgba(179,65,255,.35); border-color:var(--c-violet-core); }
+.toggle::after{
+  content:''; position:absolute; top:3px; left:3px;
+  width:14px; height:14px; border-radius:50%;
+  background:var(--c-text-faint);
+  transition: transform var(--dur-fast), background var(--dur-fast);
+}
+.toggle.on::after{ transform:translateX(18px); background:var(--c-violet-core); }
+
+.select-field{
+  background:var(--c-abyss); border:1px solid var(--c-border-faint);
+  color:var(--c-text); font-family:var(--font-heading); font-size:var(--fs-sm);
+  padding: var(--sp-2) var(--sp-3);
+  clip-path: polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px);
+  cursor:pointer;
+}
+
+/* Arena card */
+.arena-card{
+  padding: var(--sp-5);
+  background: linear-gradient(160deg,var(--c-abyss),var(--c-abyss-2));
+  border:1px solid var(--c-border-faint);
+  clip-path: polygon(var(--cut) 0,calc(100% - var(--cut)) 0,100% var(--cut),100% calc(100% - var(--cut)),calc(100% - var(--cut)) 100%,var(--cut) 100%,0 calc(100% - var(--cut)),0 var(--cut));
+  text-align:center; cursor:pointer;
+  transition: border-color var(--dur-base), box-shadow var(--dur-base);
+}
+.arena-card:hover{ border-color:var(--c-crimson-core); box-shadow:var(--glow-crimson); }
+.arena-card__icon{ font-size:2.5rem; margin-bottom:var(--sp-3); }
+.arena-card__name{ font-family:var(--font-heading); font-size:var(--fs-md); font-weight:700; }
+.arena-card__desc{ font-size:var(--fs-xs); color:var(--c-text-dim); margin-top:var(--sp-2); }
+
+/* Ranking row */
+.rank-row-item{
+  display:flex; align-items:center; gap:var(--sp-4);
+  padding:var(--sp-3) var(--sp-5);
+  border-bottom:1px solid rgba(255,255,255,.04);
+  transition:background var(--dur-fast);
+}
+.rank-row-item:hover{ background:rgba(179,65,255,.05); }
+.rank-row-item:first-child{ background:rgba(255,210,76,.04); }
+.rank-pos{
+  font-family:var(--font-display); font-size:var(--fs-sm);
+  color:var(--c-text-faint); width:28px; text-align:center;
+}
+.rank-pos.top{ color:var(--c-gold-core); }
+.rank-player-name{ font-family:var(--font-heading); font-size:var(--fs-base); font-weight:600; flex:1; }
+.rank-score{ font-family:var(--font-display); font-size:var(--fs-sm); color:var(--c-violet-core); }
+
+/* ============================================================
+   TOAST
+   ============================================================ */
+.toast-container{ position:fixed; top: calc(var(--header-h) + var(--sp-4)); right:var(--sp-5); z-index:999; display:flex; flex-direction:column; gap:var(--sp-2); pointer-events:none; }
+.toast{
+  font-family:var(--font-heading); font-size:var(--fs-sm);
+  padding:var(--sp-3) var(--sp-5);
+  background:var(--c-abyss); border-left:3px solid var(--c-violet-core);
+  box-shadow:var(--glow-violet), var(--shadow-panel);
+  clip-path:polygon(0 0,calc(100% - 6px) 0,100% 6px,100% 100%,0 100%);
+  opacity:0; transform:translateX(16px);
+  transition:all var(--dur-base) var(--ease-out);
+  pointer-events:auto;
+}
+.toast.show{ opacity:1; transform:translateX(0); }
+</style>
+</head>
+<body>
+
+<div class="particles" id="particles" aria-hidden="true"></div>
+<div class="toast-container" id="toasts"></div>
+
+<!-- ============================================================
+     MORE MENU (overlay sobre hotbar)
+     ============================================================ -->
+<div class="more-menu" id="moreMenu">
+  <div class="more-item" onclick="navigate('guilda')"><span class="more-item__icon">⚜️</span>Guilda</div>
+  <div class="more-item" onclick="navigate('arena')"><span class="more-item__icon">⚔️</span>Arena</div>
+  <div class="more-item" onclick="navigate('npcs')"><span class="more-item__icon">🧙</span>NPCs</div>
+  <div class="more-item" onclick="navigate('bestiario')"><span class="more-item__icon">📖</span>Bestiário</div>
+  <div class="more-item" onclick="navigate('ranking')"><span class="more-item__icon">🏆</span>Ranking</div>
+  <div class="more-item" onclick="navigate('config')"><span class="more-item__icon">⚙️</span>Config</div>
+</div>
+
+<!-- ============================================================
+     SHELL
+     ============================================================ -->
+<div class="shell">
+
+  <!-- HEADER -->
+  <header class="app-header">
+    <div class="app-header__brand">SISTEMA <span>DE CAÇADORES</span></div>
+    <div class="app-header__divider"></div>
+
+    <div class="player-hud">
+      <div class="rank-hex">A</div>
+      <div class="player-hud__info">
+        <div class="player-hud__name">Sung Jin-Woo</div>
+        <div class="player-hud__sub">Lv. 74 · Monarca das Sombras</div>
+      </div>
+      <div class="player-hud__bars">
+        <div class="mini-bar mini-bar--hp">
+          <span class="mini-bar__label">HP</span>
+          <div class="mini-bar__track"><div class="mini-bar__fill"></div></div>
+        </div>
+        <div class="mini-bar mini-bar--mp">
+          <span class="mini-bar__label">MP</span>
+          <div class="mini-bar__track"><div class="mini-bar__fill"></div></div>
+        </div>
+        <div class="mini-bar mini-bar--xp">
+          <span class="mini-bar__label">XP</span>
+          <div class="mini-bar__track"><div class="mini-bar__fill"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="app-header__actions">
+      <button class="hdr-btn notif-dot">Notificações</button>
+      <button class="hdr-btn">Configurações</button>
+      <button class="hdr-btn" style="color:var(--c-crimson-core); border-color:rgba(255,43,78,.3);">Sair</button>
+    </div>
+  </header>
+
+  <!-- SIDEBAR -->
+  <aside class="app-sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Principal</div>
+      <nav class="sidebar-nav">
+        <div class="nav-item active" onclick="navigate('home')"><span class="nav-item__icon">🏠</span>Home</div>
+        <div class="nav-item" onclick="navigate('inventario')"><span class="nav-item__icon">🎒</span>Inventário</div>
+        <div class="nav-item" onclick="navigate('perfil')"><span class="nav-item__icon">👤</span>Perfil</div>
+        <div class="nav-item" onclick="navigate('loja')"><span class="nav-item__icon">🛒</span>Loja</div>
+        <div class="nav-item" onclick="navigate('mapa')"><span class="nav-item__icon">🗺️</span>Mapa</div>
+        <div class="nav-item" onclick="navigate('missoes')"><span class="nav-item__icon">📜</span>Missões<span class="nav-item__badge">3</span></div>
+      </nav>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Social</div>
+      <nav class="sidebar-nav">
+        <div class="nav-item" onclick="navigate('guilda')"><span class="nav-item__icon">⚜️</span>Guilda</div>
+        <div class="nav-item" onclick="navigate('arena')"><span class="nav-item__icon">⚔️</span>Arena</div>
+        <div class="nav-item" onclick="navigate('ranking')"><span class="nav-item__icon">🏆</span>Ranking</div>
+      </nav>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Mundo</div>
+      <nav class="sidebar-nav">
+        <div class="nav-item" onclick="navigate('npcs')"><span class="nav-item__icon">🧙</span>NPCs</div>
+        <div class="nav-item" onclick="navigate('bestiario')"><span class="nav-item__icon">📖</span>Bestiário</div>
+      </nav>
+    </div>
+    <div class="sidebar-section" style="margin-top:auto;">
+      <nav class="sidebar-nav">
+        <div class="nav-item" onclick="navigate('config')"><span class="nav-item__icon">⚙️</span>Configurações</div>
+      </nav>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="app-main" id="main">
+
+    <!-- ====================================================
+         VIEW: HOME
+         ==================================================== -->
+    <section class="view active" id="view-home">
+      <div class="page-header">
+        <div class="page-header__left">
+          <div class="page-eyebrow">Dashboard</div>
+          <div class="page-title">Home</div>
+          <div class="page-sub">Bem-vindo de volta, Caçador. O Sistema observa seu progresso.</div>
+        </div>
+        <div class="page-header__actions">
+          <span class="tag tag--azure">Online</span>
+          <button class="btn btn--primary btn--sm">Ver Missões</button>
+        </div>
+      </div>
+
+      <!-- Stat cards rápidos -->
+      <div class="g4 mb5">
+        <div class="panel" style="margin-bottom:0;">
+          <div class="panel__body" style="text-align:center;">
+            <div class="font-display text-violet" style="font-size:var(--fs-xl);">74</div>
+            <div class="fs-xs uppercase text-faint mt4">Nível atual</div>
+          </div>
+        </div>
+        <div class="panel" style="margin-bottom:0;">
+          <div class="panel__body" style="text-align:center;">
+            <div class="font-display text-crimson" style="font-size:var(--fs-xl);">312</div>
+            <div class="fs-xs uppercase text-faint mt4">Monstros derrotados</div>
+          </div>
+        </div>
+        <div class="panel" style="margin-bottom:0;">
+          <div class="panel__body" style="text-align:center;">
+            <div class="font-display text-gold" style="font-size:var(--fs-xl);">48</div>
+            <div class="fs-xs uppercase text-faint mt4">Sombras extraídas</div>
+          </div>
+        </div>
+        <div class="panel" style="margin-bottom:0;">
+          <div class="panel__body" style="text-align:center;">
+            <div class="font-display text-azure" style="font-size:var(--fs-xl);">7</div>
+            <div class="fs-xs uppercase text-faint mt4">Dungeons completas</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-2-1">
+        <!-- Coluna esquerda -->
+        <div>
+          <!-- Missão ativa -->
+          <div class="panel panel--crimson">
+            <div class="panel__hdr"><span>Missão Ativa</span><div class="panel__dot"></div></div>
+            <div class="panel__body">
+              <div class="flex-between mb4">
+                <div>
+                  <div class="font-heading" style="font-size:var(--fs-md);">Dungeon de Ferro — Andar B2</div>
+                  <div class="flex-gap2 mt4">
+                    <span class="tag tag--crimson">Em andamento</span>
+                    <span class="tag tag--dim">Rank B</span>
+                  </div>
+                </div>
+                <button class="btn btn--danger btn--sm">Continuar</button>
+              </div>
+              <div class="stat-bar">
+                <div class="stat-bar__label"><span>Progresso</span><span>67%</span></div>
+                <div class="stat-bar__track"><div class="stat-bar__fill stat-bar--xp" style="width:67%"></div></div>
+              </div>
+              <div class="flex-between mt4 text-faint fs-xs uppercase">
+                <span>Objetivo: Derrotar o Guardião</span>
+                <span>Recompensa: 4.200 XP</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Atividade recente -->
+          <div class="panel">
+            <div class="panel__hdr"><span>Atividade Recente</span><div class="panel__dot"></div></div>
+            <div class="panel__body" style="padding:0;">
+              <div class="mission-item">
+                <div class="mission-item__icon">⚔️</div>
+                <div class="mission-item__info">
+                  <div class="mission-item__name">Goblin Rei derrotado</div>
+                  <div class="mission-item__desc">Dungeon de Pedra — Andar B1 · +820 XP</div>
+                </div>
+                <div class="tag tag--dim">2h atrás</div>
+              </div>
+              <div class="mission-item">
+                <div class="mission-item__icon">👥</div>
+                <div class="mission-item__info">
+                  <div class="mission-item__name">Sombra "Igris" extraída</div>
+                  <div class="mission-item__desc">Cavaleiro das Trevas — Classe A</div>
+                </div>
+                <div class="tag tag--violet">Novo</div>
+              </div>
+              <div class="mission-item">
+                <div class="mission-item__icon">🛒</div>
+                <div class="mission-item__info">
+                  <div class="mission-item__name">Item comprado na Loja</div>
+                  <div class="mission-item__desc">Elixir de Mana × 3 · –1.500 moedas</div>
+                </div>
+                <div class="tag tag--dim">Ontem</div>
+              </div>
+              <div class="mission-item">
+                <div class="mission-item__icon">🏆</div>
+                <div class="mission-item__info">
+                  <div class="mission-item__name">Rank subiu para A</div>
+                  <div class="mission-item__desc">Avaliação da Associação de Caçadores</div>
+                </div>
+                <div class="tag tag--gold">Conquista</div>
+              </div>
+            </div>
+            <div class="panel__footer"><span>Ver histórico completo</span><span class="text-violet" style="cursor:pointer;">→</span></div>
+          </div>
+        </div>
+
+        <!-- Coluna direita -->
+        <div>
+          <!-- Status do personagem -->
+          <div class="panel">
+            <div class="panel__hdr"><span>Status</span><div class="panel__dot"></div></div>
+            <div class="panel__body">
+              <div class="stat-bar">
+                <div class="stat-bar__label"><span>HP</span><span>8.400 / 10.200</span></div>
+                <div class="stat-bar__track"><div class="stat-bar__fill stat-bar--hp" style="width:82%"></div></div>
+              </div>
+              <div class="stat-bar">
+                <div class="stat-bar__label"><span>MP</span><span>3.100 / 5.000</span></div>
+                <div class="stat-bar__track"><div class="stat-bar__fill stat-bar--mp" style="width:62%"></div></div>
+              </div>
+              <div class="stat-bar">
+                <div class="stat-bar__label"><span>XP</span><span>38%</span></div>
+                <div class="stat-bar__track"><div class="stat-bar__fill stat-bar--xp" style="width:38%"></div></div>
+              </div>
+              <hr class="divider">
+              <div class="flex-between mb2">
+                <span class="text-faint fs-xs uppercase">Força</span>
+                <span class="font-display text-violet fs-xs">284</span>
+              </div>
+              <div class="flex-between mb2">
+                <span class="text-faint fs-xs uppercase">Agilidade</span>
+                <span class="font-display text-violet fs-xs">319</span>
+              </div>
+              <div class="flex-between mb2">
+                <span class="text-faint fs-xs uppercase">Inteligência</span>
+                <span class="font-display text-violet fs-xs">510</span>
+              </div>
+              <div class="flex-between">
+                <span class="text-faint fs-xs uppercase">Sentido</span>
+                <span class="font-display text-violet fs-xs">488</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Moedas -->
+          <div class="panel panel--gold">
+            <div class="panel__hdr"><span>Carteira</span><div class="panel__dot"></div></div>
+            <div class="panel__body" style="text-align:center;">
+              <div class="font-display text-gold" style="font-size:var(--fs-xl);">84.320</div>
+              <div class="fs-xs uppercase text-faint">Moedas do Sistema</div>
+              <button class="btn btn--legendary btn--sm" style="margin-top:var(--sp-4); width:100%;">Ir à Loja</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Anúncios do sistema -->
+      <div class="panel panel--azure">
+        <div class="panel__hdr"><span>📢 Aviso do Sistema</span><div class="panel__dot"></div></div>
+        <div class="panel__body">
+          <div class="flex-between mb3">
+            <span class="font-heading">Evento de Dungeon de Alta Dificuldade — Semana das Sombras</span>
+            <span class="tag tag--azure">Ativo</span>
+          </div>
+          <p class="fs-sm text-dim">Durante o evento, dungeons de rank S concedem o dobro de XP e chance aumentada de drop lendário. Duração: 5 dias restantes.</p>
+        </div>
+      </div>
+
+      <div class="page-footer">
+        <div class="page-footer__status"><div class="status-dot"></div>Servidor: BR-Seul-01 · Estável</div>
+        <span>v0.4.2 Alpha · Sistema de Caçadores</span>
+      </div>
+    </section>
+
+    <!-- ====================================================
+         VIEW: INVENTÁRIO
+         ==================================================== -->
+    <section class="view" id="view-inventario">
+      <div class="page-header">
+        <div class="page-header__left">
+          <div class="page-eyebrow">Equipamentos & Itens</div>
+          <div class="page-title">Inventário</div>
+          <div class="page-sub">136 / 200 slots ocupados</div>
+        </div>
+        <div class="page-header__actions">
+          <button class="btn btn--skill btn--sm">Ordenar</button>
+          <button class="btn btn--primary btn--sm">Filtrar</button>
+        </div>
+      </div>
+
+      <div class="col-1-2">
+        <!-- Equipamentos do personagem -->
+        <div>
+          <div class="panel">
+            <div class="panel__hdr"><span>Equipado</span><div class="panel__dot"></div></div>
+            <div class="panel__body">
+              <div class="ga" style="grid-template-columns:repeat(3,1fr);">
+                <div class="item-card item-card--epico">
+                  <div class="item-card__icon">🗡️</div>
+                  <div class="item-card__name">Lâmina Sombria</div>
+                  <div class="item-card__tag">Arma — Épico</div>
+                </div>
+                <div class="item-card item-card--lend">
+                  <div class="item-card__icon">🛡️</div>
+                  <div class="item-card__name">Égide do Monarca</div>
+                  <div class="item-card__tag">Armadura — Lend.</div>
+                </div>
+                <div class="item-card item-card--raro">
+                  <div class="item-card__icon">💍</div>
+                  <div class="item-card__name">Anel de Extração</div>
+                  <div class="item-card__tag">Anel — Raro</div>
+                </div>
+                <div class="item-card">
+                  <div class="item-card__icon">🪖</div>
+                  <div class="item-card__name">Capuz de Sombra</div>
+                  <div class="item-card__tag">Capacete — Comum</div>
+                </div>
+                <div class="item-card item-card--epico">
+                  <div class="item-card__icon">🥾</div>
+                  <div class="item-card__name">Botas do Vazio</div>
+                  <div class="item-card__tag">Bota — Épico</div>
+                </div>
+                <div class="item-card" style="border-style:dashed; opacity:.35; cursor:default;">
+                  <div class="item-card__icon">＋</div>
+                  <div class="item-card__name">Slot vazio</div>
+                  <div class="item-card__tag">Amuleto</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Grid de inventário -->
+        <div>
+          <div class="panel">
+            <div class="panel__hdr">
+              <span>Todos os Itens</span>
+              <div class="flex-gap2">
+                <span class="tag tag--dim">Armas</span>
+                <span class="tag tag--violet">Armaduras</span>
+                <span class="tag tag--azure">Consumíveis</span>
+              </div>
+            </div>
+            <div class="panel__body">
+              <div class="ga">
+                <div class="item-card item-card--lend"><div class="item-card__icon">⚔️</div><div class="item-card__name">Espada do Monarca</div><div class="item-card__tag">Lendário</div></div>
+                <div class="item-card item-card--epico"><div class="item-card__icon">🗡️</div><div class="item-card__name">Adaga das Sombras</div><div class="item-card__tag">Épico</div></div>
+                <div class="item-card item-card--raro"><div class="item-card__icon">🏹</div><div class="item-card__name">Arco Espectral</div><div class="item-card__tag">Raro</div></div>
+                <div class="item-card"><div class="item-card__icon">🧪</div><div class="item-card__name">Poção de HP x12</div><div class="item-card__tag">Consumível</div></div>
+                <div class="item-card item-card--raro"><div class="item-card__icon">📿</div><div class="item-card__name">Colar de Mana</div><div class="item-card__tag">Raro</div></div>
+                <div class="item-card"><div class="item-card__icon">🧿</div><div class="item-card__name">Orbe de Extração</div><div class="item-card__tag">Missão</div></div>
+                <div class="item-card item-card--epico"><div class="item-card__icon">🪬</div><div class="item-card__name">Amuleto Sombrio</div><div class="item-card__tag">Épico</div></div>
+                <div class="item-card"><div class="item-card__icon">🌀</div><div class="item-card__name">Pergaminho de Teletransporte</div><div class="item-card__tag">Comum</div></div>
+              </div>
+            </div>
+            <div class="panel__footer"><span>Mostrando 8 de 136</span><span class="text-violet" style="cursor:pointer;">Ver todos →</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="page-footer">
+        <div class="page-footer__status"><div class="status-dot"></div>Inventário sincronizado</div>
+        <span>Peso total: 34 / 100 kg</span>
+      </div>
+    </section>
+
+    <!-- ====================================================
+         VIEW: PERFIL
+         ==================================================== -->
+    <section class="view" id="view-perfil">
+      <div class="page-header">
+        <div class="page-header__left">
+          <div class="page-eyebrow">Caçador</div>
+          <div class="page-title">Perfil</div>
+          <div class="page-sub">Sung Jin-Woo · ID #000001</div>
+        </div>
+        <div class="page-header__actions">
+          <button class="btn btn--skill btn--sm">Editar Perfil</button>
+          <button class="btn btn--primary btn--sm">Distribuir Pontos</button>
+        </div>
+      </div>
+
+      <div class="col-1-2">
+        <!-- Card de identidade -->
+        <div>
+          <div class="panel panel--gold">
+            <div class="panel__body" style="text-align:center;">
+              <div style="font-size:4rem; margin-bottom:var(--sp-3);">🧍‍♂️</div>
+              <div class="font-display" style="font-size:var(--fs-md);">SUNG JIN-WOO</div>
+              <div class="text-dim fs-sm mt4">Monarca das Sombras</div>
+              <div class="flex-gap2" style="justify-content:center; margin-top:var(--sp-4);">
+                <div class="rank-badge rank-badge--a">A</div>
+                <div>
+                  <div class="font-heading" style="font-size:var(--fs-md);">Rank A</div>
+                  <div class="fs-xs text-faint">Associação de Caçadores</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel__hdr"><span>Habilidades Passivas</span><div class="panel__dot"></div></div>
+            <div class="panel__body" style="display:flex; flex-direction:column; gap:var(--sp-3);">
+              <div class="flex-between">
+                <span class="fs-sm">Dominação das Sombras</span><span class="tag tag--violet">Ativo</span>
+              </div>
+              <div class="flex-between">
+                <span class="fs-sm">Visão nas Trevas</span><span class="tag tag--violet">Ativo</span>
+              </div>
+              <div class="flex-between">
+                <span class="fs-sm">Regeneração Acelerada</span><span class="tag tag--azure">Passivo</span>
+              </div>
+              <div class="flex-between">
+                <span class="fs-sm">Senso de Combate</span><span class="tag tag--azure">Passivo</span>
+              </div>
+              <div class="flex-between">
+                <span class="fs-sm">Resistência ao Medo</span><span class="tag tag--dim">Bloqueado</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Atributos e progressão -->
+        <div>
+          <div class="panel">
+            <div class="panel__hdr"><span>Atributos</span><div class="panel__dot"></div></div>
+            <div class="panel__body">
+              <div class="stat-bar">
+                <div class="stat-bar__label"><span>Força</span><span>284 pts</span></div>
+                <div class="stat-bar__track"><div class="stat-bar__fill stat-bar--hp" style="width:56%"></div></div>
+              </div>
+              <div class="stat-bar">
+                <div class="stat-bar__label"><span>Agilidade</span><span>319 pts</span></div>
+                <div class="stat-bar__track"><div class="stat-bar__fill stat-bar--mp" style="width:64%"></div></div>
+              </div>
+              <div class="stat-bar">
+                <div class="stat-bar__label"><span>Inteligência</span><span>510 pts</span></div>
+                <div class="stat-bar__track"><div class="stat-bar__fill stat-bar--str" style="width:80%"></div></div>
+              </div>
+              <div class="stat-bar">
+                <div class="stat-bar__label"><span>Percepção</span><span>488 pts</span></div>
+                <div class="stat-bar__track"><div class="stat-bar__fill stat-bar--xp" style="width:76%"></div></div>
+              </div>
+              <div class="stat-bar">
+                <div class="stat-bar__label"><span>Vitalidade</span><span>392 pts</span></div>
+                <div class="stat-bar__track"><div class="stat-bar__fill stat-bar--hp" style="width:62%"></div></div>
+              </div>
+              <hr class="divider">
+              <div class="flex-between">
+                <span class="text-faint fs-xs uppercase">Pontos disponíveis</span>
+                <span class="font-display text-gold fs-sm">12</span>
+              </div>
+            </div>
+          </div>
+          <div class="panel panel--crimson">
+            <div class="panel__hdr"><span>Histórico de Batalha</span><div class="panel__dot"></div></div>
+            <div class="panel__body">
+              <div class="g2" style="gap:var(--sp-4); text-align:center;">
+                <div><div class="font-display text-crimson fs-lg">312</div><div class="fs-xs text-faint uppercase">Mortes de monstro</div></div>
+                <div><div class="font-display text-gold fs-lg">48</div><div class="fs-xs text-faint uppercase">Sombras</div></div>
+                <div><div class="font-display text-azure fs-lg">7</div><div class="fs-xs text-faint uppercase">Dungeons B+</div></div>
+                <div><div class="font-display text-violet fs-lg">0</div><div class="fs-xs text-faint uppercase">Mortes</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="page-footer">
+        <div class="page-footer__status"><div class="status-dot"></div>Perfil público</div>
+        <span>Criado em 01/01/2024</span>
+      </div>
+    </section>
+
+    <!-- ====================================================
+         VIEW: LOJA
+         ==================================================== -->
+    <section class="view" id="view-loja">
+      <div class="page-header">
+        <div class="page-header__left">
+          <div class="page-eyebrow">Mercado do Sistema</div>
+          <div class="page-title">Loja</div>
+          <div class="page-sub">Itens disponíveis para compra com moedas do Sistema</div>
+        </div>
+        <div class="page-header__actions">
+          <span class="font-display text-gold">84.320 🪙</span>
+          <button class="btn btn--primary btn--sm">Minhas compras</button>
+        </div>
+      </div>
+
+      <!-- Destaque -->
+      <div class="panel panel--gold mb5">
+        <div class="panel__hdr"><span>⭐ Destaque da Semana</span><div class="panel__dot"></div></div>
+        <div class="panel__body">
+          <div class="flex-between">
+            <div class="flex-gap3">
+              <div style="font-size:3rem;">👑</div>
+              <div>
+                <div class="font-heading" style="font-size:var(--fs-md); color:var(--c-gold-core);">Coroa do Monarca</div>
+                <div class="fs-sm text-dim">Capacete lendário · +180 INT · +120 VIT</div>
+                <div class="flex-gap2 mt4"><span class="tag tag--gold">Lendário</span><span class="tag tag--crimson">–30% esta semana</span></div>
+              </div>
+            </div>
+            <div style="text-align:right;">
+              <div class="font-display text-gold fs-lg">28.000</div>
+              <div class="fs-xs text-faint uppercase">Moedas</div>
+              <button class="btn btn--legendary btn--sm" style="margin-top:var(--sp-3);">Comprar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Categorias + grid -->
+      <div class="flex-gap2 mb5">
+        <span class="tag tag--violet">Todos</span>
+        <span class="tag tag--dim">Armas</span>
+        <span class="tag tag--dim">Armaduras</span>
+        <span class="tag tag--dim">Consumíveis</span>
+        <span class="tag tag--dim">Materiais</span>
+        <span class="tag tag--dim">Especiais</span>
+      </div>
+
+      <div class="g4">
+        <div class="item-card item-card--epico">
+          <div class="item-card__icon">🗡️</div>
+          <div class="item-card__name">Daga Espectral</div>
+          <div class="item-card__tag">Épico · 12.500 🪙</div>
+        </div>
+        <div class="item-card item-card--raro">
+          <div class="item-card__icon">🧪</div>
+          <div class="item-card__name">Elixir de Mana</div>
+          <div class="item-card__tag">Raro · 800 🪙</div>
+        </div>
+        <div class="item-card">
+          <div class="item-card__icon">📜</div>
+          <div class="item-card__name">Pergaminho B</div>
+          <div class="item-card__tag">Comum · 250 🪙</div>
+        </div>
+        <div class="item-card item-card--lend">
+          <div class="item-card__icon">💎</div>
+          <div class="item-card__name">Cristal de Despertar</div>
+          <div class="item-card__tag">Lend. · 50.000 🪙</div>
+        </div>
+        <div class="item-card item-card--raro">
+          <div class="item-card__icon">🛡️</div>
+          <div class="item-card__name">Escudo de Ferro Sombrio</div>
+          <div class="item-card__tag">Raro · 7.200 🪙</div>
+        </div>
+        <div class="item-card">
+          <div class="item-card__icon">🧴</div>
+          <div class="item-card__name">Poção de Cura x5</div>
+          <div class="item-card__tag">Comum · 400 🪙</div>
+        </div>
+        <div class="item-card item-card--epico">
+          <div class="item-card__icon">⚡</div>
+          <div class="item-card__name">Runa de Velocidade</div>
+          <div class="item-card__tag">Épico · 9.000 🪙</div>
+        </div>
+        <div class="item-card">
+          <div class="item-card__icon">🔮</div>
+          <div class="item-card__name">Orbe de Identificação</div>
+          <div class="item-card__tag">Comum · 300 🪙</div>
+        </div>
+      </div>
+
+      <div class="page-footer">
+        <div class="page-footer__status"><div class="status-dot"></div>Loja atualizada</div>
+        <span>Mostrando 8 de 214 itens</span>
+      </div>
+    </section>
+
+    <!-- ====================================================
+         VIEW: MAPA
+         ==================================================== -->
+    <section class="view" id="view-mapa">
+      <div class="page-header">
+        <div class="page-header__left">
+          <div class="page-eyebrow">Mundo</div>
+          <div class="page-title">Mapa</div>
+          <div class="page-sub">Regiões e dungeons disponíveis</div>
+        </div>
+        <div class="page-header__actions">
+          <button class="btn btn--skill btn--sm">Filtrar Rank</button>
+          <button class="btn btn--primary btn--sm">Entrar em Dungeon</button>
+        </div>
+      </div>
+
+      <div class="col-2-1">
+        <!-- Mapa visual -->
+        <div>
+          <div class="panel">
+            <div class="panel__hdr"><span>Região: Seul</span><div class="panel__dot"></div></div>
+            <div class="panel__body" style="padding:0;">
+              <div class="map-placeholder" id="mapCanvas">
+                <div class="map-placeholder__label">[ MAPA DA REGIÃO ]<br><span style="font-size:0.7rem; opacity:.5;">renderização em desenvolvimento</span></div>
+                <!-- Nós do mapa -->
+                <div class="map-node map-node--safe" style="top:20%;left:15%;" title="Cidade de Seul"></div>
+                <div class="map-node" style="top:35%;left:28%;" title="Dungeon de Pedra"></div>
+                <div class="map-node" style="top:50%;left:40%;" title="Floresta Sombria"></div>
+                <div class="map-node map-node--boss" style="top:60%;left:55%;" title="Boss: Guardião"></div>
+                <div class="map-node" style="top:30%;left:60%;" title="Dungeon de Ferro"></div>
+                <div class="map-node map-node--safe" style="top:15%;left:72%;" title="Porto"></div>
+                <div class="map-node map-node--boss" style="top:75%;left:75%;" title="Boss: Monarca"></div>
+                <div class="map-node" style="top:45%;left:80%;" title="Torre do Sistema"></div>
+                <!-- Linhas de conexão (decorativas) -->
+                <div class="map-line" style="top:22%;left:16%;width:80px;transform:rotate(20deg);"></div>
+                <div class="map-line" style="top:38%;left:29%;width:90px;transform:rotate(14deg);"></div>
+                <div class="map-line" style="top:52%;left:41%;width:100px;transform:rotate(8deg);"></div>
+              </div>
+            </div>
+            <div class="panel__footer">
+              <span class="flex-gap2"><span class="map-node map-node--safe" style="position:relative;top:0;left:0;display:inline-block;width:8px;height:8px;"></span>Seguro</span>
+              <span class="flex-gap2"><span class="map-node" style="position:relative;top:0;left:0;display:inline-block;width:8px;height:8px;background:var(--c-violet-core)"></span>Dungeon</span>
+              <span class="flex-gap2"><span class="map-node map-node--boss" style="position:relative;top:0;left:0;display:inline-block;width:10px;height:10px;"></span>Boss</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Lista de dungeons -->
+        <div>
+          <div class="panel">
+            <div class="panel__hdr"><span>Dungeons Disponíveis</span><div class="panel__dot"></div></div>
+            <div class="panel__body" style="padding:0;">
+              <div class="mission-item">
+                <div class="mission-item__icon">🪨</div>
+                <div class="mission-item__info">
+                  <div class="mission-item__name">Dungeon de Pedra</div>
+                  <div class="mission-item__desc">Rank D · 3 andares</div>
+                </div>
+                <div class="rank-badge rank-badge--d">D</div>
+              </div>
+              <div class="mission-item">
+                <div class="mission-item__icon">🌲</div>
+                <div class="mission-item__info">
+                  <div class="mission-item__name">Floresta Sombria</div>
+                  <div class="mission-item__desc">Rank C · 5 andares</div>
+                </div>
+                <div class="rank-badge rank-badge--c">C</div>
+              </div>
+              <div class="mission-item">
+                <div class="mission-item__icon">🔩</div>
+                <div class="mission-item__info">
+                  <div class="mission-item__name">Dungeon de Ferro</div>
+                  <div class="mission-item__desc">Rank B · 7 andares · Em curso</div>
+                </div>
+                <div class="rank-badge rank-badge--b">B</div>
+              </div>
+              <div class="mission-item">
+                <div class="mission-item__icon">🗼</div>
+                <div class="mission-item__info">
+                  <div class="mission-item__name">Torre do Sistema</div>
+                  <div class="mission-item__desc">Rank A · 10 andares · Bloqueado</div>
+                </div>
+                <div class="rank-badge rank-badge--a">A</div>
+              </div>
+              <div class="mission-item" style="opacity:.4;">
+                <div class="mission-item__icon">👁️</div>
+                <div class="mission-item__info">
+                  <div class="mission-item__name">Dungeon do Monarca</div>
+                  <div class="mission-item__desc">Rank S · ??? andares · Bloqueado</div>
+                </div>
+                <div class="rank-badge rank-badge--s">S</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="page-footer">
+        <div class="page-footer__status"><div class="status-dot"></div>Mapa atualizado</div>
+        <span>5 regiões desbloqueadas</span>
+      </div>
+    </section>
+
+    <!-- ====================================================
+         VIEW: MISSÕES
+         ==================================================== -->
+    <section class="view" id="view-missoes">
+      <div class="page-header">
+        <div class="page-header__left">
+          <div class="page-eyebrow">Objetivos</div>
+          <div class="page-title">Missões</div>
+          <div class="page-sub">3 missões ativas · 28 completas</div>
+        </div>
+        <div class="page-header__actions">
+          <button class="btn btn--primary btn--sm">Receber Missão</button>
+        </div>
+      </div>
+
+      <div class="g2">
+        <!-- Missões ativas -->
+        <div>
+          <div class="panel panel--crimson">
+            <div class="panel__hdr"><span>Ativas</span><div class="panel__dot"></div></div>
+            <div class="panel__body" style="padding:0;">
+              <div class="mission-item">
+                <div class="mission-item__icon">⚔️</div>
+                <div class="mission-item__info">
+                  <div class="mission-item__name">Derrotar Guardião de Ferro</div>
+                  <div class="mission-item__desc">Dungeon de Ferro — Andar B3 · Rank B</div>
+                </div>
+                <div class="mission-item__meta">
+                  <span class="tag tag--crimson">67%</span>
+                  <span class="fs-xs text-faint">+4.200 XP</span>
+                </div>
+              </div>
+              <div class="mission-item">
+                <div class="mission-item__icon">👥</div>
+                <div class="mission-item__info">
+                  <div class="mission-item__name">Extrair 5 Sombras de Rank C+</div>
+                  <div class="mission-item__desc">Missão do Sistema · 3/5 completo</div>
+                </div>
+                <div class="mission-item__meta">
+                  <span class="tag tag--violet">3/5</span>
+                  <span class="fs-xs text-faint">+2.800 XP</span>
+                </div>
+              </div>
+              <div class="mission-item">
+                <div class="mission-item__icon">🗺️</div>
+                <div class="mission-item__info">
+                  <div class="mission-item__name">Explorar a Floresta Sombria</div>
+                  <div class="mission-item__desc">Missão de Exploração · Rank C</div>
+                </div>
+                <div class="mission-item__meta">
+                  <span class="tag tag--azure">0%</span>
+                  <span class="fs-xs text-faint">+1.500 XP</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Missões diárias -->
+          <div class="panel panel--azure">
+            <div class="panel__hdr"><span>Diárias</span><div class="panel__dot"></div></div>
+            <div class="panel__body" style="padding:0;">
+              <div class="mission-item">
+                <div class="mission-item__icon">🏋️</div>
+                <div class="mission-item__info">
+                  <div class="mission-item__name">Completar 10 kills diários</div>
+                  <div class="mission-item__desc">7/10 concluído</div>
+                </div>
+                <div class="tag tag--azure">7/10</div>
+              </div>
+              <div class="mission-item" style="opacity:.5;">
+                <div class="mission-item__icon">🧘</div>
+                <div class="mission-item__info">
+                  <div class="mission-item__name">Meditar no Sistema</div>
+                  <div class="mission-item__desc">Concluída</div>
+                </div>
+                <div class="tag tag--dim">✓ Feito</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Missões concluídas e especiais -->
+        <div>
+          <div class="panel panel--gold">
+            <div class="panel__hdr"><span>Missão Especial do Sistema</span><div class="panel__dot"></div></div>
+            <div class="panel__body">
+              <div class="font-heading mb3" style="font-size:var(--fs-md);">🌑 Despertar das Sombras</div>
+              <p class="fs-sm text-dim mb4">Derrote o Monarca das Trevas e assuma o controle das sombras ancestrais. Esta missão só aparece uma vez na vida do Caçador.</p>
+              <div class="stat-bar">
+                <div class="stat-bar__label"><span>Progresso Total</span><span>12%</span></div>
+                <div class="stat-bar__track"><div class="stat-bar__fill stat-bar--xp" style="width:12%"></div></div>
+              </div>
+              <div class="flex-gap2 mt4">
+                <span class="tag tag--gold">Lendária</span>
+                <span class="tag tag--crimson">Alto risco</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel__hdr"><span>Concluídas Recentes</span><div class="panel__dot"></div></div>
+            <div class="panel__body" style="padding:0;">
+              <div class="mission-item" style="opacity:.5;">
+                <div class="mission-item__icon">✅</div>
+                <div class="mission-item__info"><div class="mission-item__name">Dungeon de Pedra — Limpa</div><div class="mission-item__desc">+3.200 XP · Rank D</div></div>
+                <span class="fs-xs text-faint">2 dias</span>
+              </div>
+              <div class="mission-item" style="opacity:.5;">
+                <div class="mission-item__icon">✅</div>
+                <div class="mission-item__info"><div class="mission-item__name">10 Goblins derrotados</div><div class="mission-item__desc">+800 XP · Diária</div></div>
+                <span class="fs-xs text-faint">3 dias</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="page-footer">
+        <div class="page-footer__status"><div class="status-dot"></div>Missões sincronizadas</div>
+        <span>28 missões concluídas no total</span>
+      </div>
+    </section>
+
+    <!-- ====================================================
+         VIEW: GUILDA
+         ==================================================== -->
+    <section class="view" id="view-guilda">
+      <div class="page-header">
+        <div class="page-header__left">
+          <div class="page-eyebrow">Corporação</div>
+          <div class="page-title">Guilda</div>
+          <div class="page-sub">Exército das Sombras · Fundada em 2024</div>
+        </div>
+        <div class="page-header__actions">
+          <button class="btn btn--skill btn--sm">Convidar</button>
+          <button class="btn btn--primary btn--sm">Gerenciar</button>
+        </div>
+      </div>
+
+      <div class="col-2-1">
+        <div>
+          <div class="panel">
+            <div class="panel__hdr"><span>Membros (8/20)</span><div class="panel__dot"></div></div>
+            <div class="panel__body" style="padding:0;">
+              <div class="member-row">
+                <div class="member-avatar">👑</div>
+                <div><div class="member-name">Sung Jin-Woo</div><div class="member-rank-title">Grão-Mestre · Rank A</div></div>
+                <div class="rank-badge rank-badge--a" style="margin-left:auto;">A</div>
+                <div class="member-contrib">12.400</div>
+              </div>
+              <div class="member-row">
+                <div class="member-avatar">⚔️</div>
+                <div><div class="member-name">Choi Jong-In</div><div class="member-rank-title">Vice-Mestre · Rank B</div></div>
+                <div class="rank-badge rank-badge--b" style="margin-left:auto;">B</div>
+                <div class="member-contrib">8.200</div>
+              </div>
+              <div class="member-row">
+                <div class="member-avatar">🏹</div>
+                <div><div class="member-name">Cha Hae-In</div><div class="member-rank-title">Membro · Rank A</div></div>
+                <div class="rank-badge rank-badge--a" style="margin-left:auto;">A</div>
+                <div class="member-contrib">7.800</div>
+              </div>
+              <div class="member-row">
+                <div class="member-avatar">🛡️</div>
+                <div><div class="member-name">Go Gunhee</div><div class="member-rank-title">Membro · Rank B</div></div>
+                <div class="rank-badge rank-badge--b" style="margin-left:auto;">B</div>
+                <div class="member-contrib">5.100</div>
+              </div>
+              <div class="member-row">
+                <div class="member-avatar">🧙</div>
+                <div><div class="member-name">Woo Jinchul</div><div class="member-rank-title">Membro · Rank C</div></div>
+                <div class="rank-badge rank-badge--c" style="margin-left:auto;">C</div>
+                <div class="member-contrib">2.300</div>
+              </div>
+            </div>
+            <div class="panel__footer"><span>Mostrando 5 de 8</span><span class="text-violet" style="cursor:pointer;">Ver todos →</span></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="panel panel--gold">
+            <div class="panel__hdr"><span>Guilda Info</span><div class="panel__dot"></div></div>
+            <div class="panel__body">
+              <div style="font-size:3rem; text-align:center; margin-bottom:var(--sp-3);">⚜️</div>
+              <div class="font-display text-gold" style="font-size:var(--fs-md); text-align:center;">Exército das Sombras</div>
+              <hr class="divider">
+              <div class="flex-between mb2"><span class="text-faint fs-xs uppercase">Nível</span><span class="font-display text-gold">12</span></div>
+              <div class="flex-between mb2"><span class="text-faint fs-xs uppercase">Membros</span><span class="font-display">8 / 20</span></div>
+              <div class="flex-between mb2"><span class="text-faint fs-xs uppercase">Pontos</span><span class="font-display text-violet">48.200</span></div>
+              <div class="flex-between"><span class="text-faint fs-xs uppercase">Ranking</span><span class="font-display text-gold">#3</span></div>
+            </div>
+          </div>
+          <div class="panel panel--crimson">
+            <div class="panel__hdr"><span>Missão da Guilda</span><div class="panel__dot"></div></div>
+            <div class="panel__body">
+              <div class="fs-sm mb3">Destruir a Dungeon S em equipe</div>
+              <div class="stat-bar">
+                <div class="stat-bar__label"><span>Progresso</span><span>22%</span></div>
+                <div class="stat-bar__track"><div class="stat-bar__fill stat-bar--xp" style="width:22%"></div></div>
+              </div>
+              <button class="btn btn--danger btn--sm" style="margin-top:var(--sp-4); width:100%;">Participar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="page-footer">
+        <div class="page-footer__status"><div class="status-dot"></div>Guilda online</div>
+        <span>Próxima atividade em 2h</span>
+      </div>
+    </section>
+
+    <!-- ====================================================
+         VIEW: ARENA
+         ==================================================== -->
+    <section class="view" id="view-arena">
+      <div class="page-header">
+        <div class="page-header__left">
+          <div class="page-eyebrow">Combate PvP</div>
+          <div class="page-title">Arena</div>
+          <div class="page-sub">Temporada 4 · Em andamento · 14 dias restantes</div>
+        </div>
+        <div class="page-header__actions">
+          <span class="font-display text-gold">Pontos: 1.840</span>
+          <span class="rank-badge rank-badge--a" style="margin:0 var(--sp-2);">A</span>
+          <button class="btn btn--danger btn--sm">Entrar em Combate</button>
+        </div>
+      </div>
+
+      <!-- Modos de jogo -->
+      <div class="g3 mb5">
+        <div class="arena-card">
+          <div class="arena-card__icon">⚔️</div>
+          <div class="arena-card__name">1v1 Ranqueado</div>
+          <div class="arena-card__desc">Duelo solo ranqueado. Rank afeta matchmaking.</div>
+          <button class="btn btn--danger btn--sm" style="margin-top:var(--sp-4);">Batalhar</button>
+        </div>
+        <div class="arena-card">
+          <div class="arena-card__icon">👥</div>
+          <div class="arena-card__name">4v4 em Equipe</div>
+          <div class="arena-card__desc">Monte uma party e entre na batalha em grupo.</div>
+          <button class="btn btn--danger btn--sm" style="margin-top:var(--sp-4);">Convidar Party</button>
+        </div>
+        <div class="arena-card">
+          <div class="arena-card__icon">🏆</div>
+          <div class="arena-card__name">Torneio Semanal</div>
+          <div class="arena-card__desc">Disputa eliminatória. Começa sábado às 20h.</div>
+          <button class="btn btn--legendary btn--sm" style="margin-top:var(--sp-4);">Inscrever-se</button>
+        </div>
+      </div>
+
+      <div class="g2">
+        <div class="panel">
+          <div class="panel__hdr"><span>Histórico de Batalhas</span><div class="panel__dot"></div></div>
+          <table class="data-table">
+            <thead><tr><th>Oponente</th><th>Rank</th><th>Resultado</th><th>Pontos</th></tr></thead>
+            <tbody>
+              <tr><td>Go Gunhee</td><td><span class="tag tag--dim">B</span></td><td><span class="tag tag--azure">Vitória</span></td><td class="text-violet font-heading">+28</td></tr>
+              <tr><td>Kim Chul</td><td><span class="tag tag--dim">A</span></td><td><span class="tag tag--azure">Vitória</span></td><td class="text-violet font-heading">+40</td></tr>
+              <tr><td>Park Heejin</td><td><span class="tag tag--dim">A</span></td><td><span class="tag tag--crimson">Derrota</span></td><td class="text-crimson font-heading">–22</td></tr>
+              <tr><td>Cha Hae-In</td><td><span class="tag tag--dim">A</span></td><td><span class="tag tag--azure">Vitória</span></td><td class="text-violet font-heading">+38</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="panel">
+          <div class="panel__hdr"><span>Ranking da Temporada</span><div class="panel__dot"></div></div>
+          <div class="panel__body" style="padding:0;">
+            <div class="rank-row-item">
+              <div class="rank-pos top">1</div>
+              <div class="rank-badge rank-badge--n" style="width:28px;height:32px;font-size:0.6rem;">N</div>
+              <div class="rank-player-name">Thomas Andre</div>
+              <div class="rank-score">4.220</div>
+            </div>
+            <div class="rank-row-item">
+              <div class="rank-pos top">2</div>
+              <div class="rank-badge rank-badge--s" style="width:28px;height:32px;font-size:0.6rem;">S</div>
+              <div class="rank-player-name">Liu Zhigang</div>
+              <div class="rank-score">3.810</div>
+            </div>
+            <div class="rank-row-item" style="background:rgba(179,65,255,.06);">
+              <div class="rank-pos" style="color:var(--c-violet-core);">7</div>
+              <div class="rank-badge rank-badge--a" style="width:28px;height:32px;font-size:0.6rem;">A</div>
+              <div class="rank-player-name">Sung Jin-Woo <span class="tag tag--violet" style="font-size:0.55rem;">Você</span></div>
+              <div class="rank-score">1.840</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="page-footer">
+        <div class="page-footer__status"><div class="status-dot"></div>Arena ativa</div>
+        <span>Temp. 4 · Termina em 14 dias</span>
+      </div>
+    </section>
+
+    <!-- ====================================================
+         VIEW: NPCs
+         ==================================================== -->
+    <section class="view" id="view-npcs">
+      <div class="page-header">
+        <div class="page-header__left">
+          <div class="page-eyebrow">Personagens</div>
+          <div class="page-title">NPCs</div>
+          <div class="page-sub">Mestres, aliados e comerciantes do Sistema</div>
+        </div>
+        <div class="page-header__actions">
+          <button class="btn btn--primary btn--sm">Filtrar por Tipo</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel__hdr"><span>Mestres de Treinamento</span><div class="panel__dot"></div></div>
+        <div class="panel__body" style="padding:0;">
+          <div class="entity-card">
+            <div class="entity-card__avatar">🥋</div>
+            <div class="entity-card__info">
+              <div class="entity-card__name">Maestro Kang</div>
+              <div class="entity-card__meta">Especialista em Força e Armas Brancas</div>
+              <div class="entity-card__tags"><span class="tag tag--violet">Treinamento</span><span class="tag tag--dim">Disponível</span></div>
+            </div>
+            <div class="entity-card__aside">
+              <button class="btn btn--primary btn--sm">Treinar</button>
+              <span class="fs-xs text-faint">500 🪙/sessão</span>
+            </div>
+          </div>
+          <div class="entity-card">
+            <div class="entity-card__avatar">🏹</div>
+            <div class="entity-card__info">
+              <div class="entity-card__name">Mestra Lyra</div>
+              <div class="entity-card__meta">Especialista em Agilidade e Arco</div>
+              <div class="entity-card__tags"><span class="tag tag--azure">Treinamento</span><span class="tag tag--dim">Disponível</span></div>
+            </div>
+            <div class="entity-card__aside">
+              <button class="btn btn--skill btn--sm">Treinar</button>
+              <span class="fs-xs text-faint">450 🪙/sessão</span>
+            </div>
+          </div>
+          <div class="entity-card">
+            <div class="entity-card__avatar">🧙‍♂️</div>
+            <div class="entity-card__info">
+              <div class="entity-card__name">Ancião do Sistema</div>
+              <div class="entity-card__meta">Mestre de Magia e Inteligência · Raramente aparece</div>
+              <div class="entity-card__tags"><span class="tag tag--gold">Especial</span><span class="tag tag--crimson">Indisponível</span></div>
+            </div>
+            <div class="entity-card__aside">
+              <button class="btn btn--legendary btn--sm" disabled style="opacity:.4;cursor:not-allowed;">Invocar</button>
+              <span class="fs-xs text-faint">Evento único</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel__hdr"><span>Comerciantes</span><div class="panel__dot"></div></div>
+        <div class="panel__body" style="padding:0;">
+          <div class="entity-card">
+            <div class="entity-card__avatar">🧳</div>
+            <div class="entity-card__info">
+              <div class="entity-card__name">Mercador do Caos</div>
+              <div class="entity-card__meta">Itens raros e únicos · Estoque muda toda semana</div>
+              <div class="entity-card__tags"><span class="tag tag--gold">Lojista</span><span class="tag tag--dim">Online</span></div>
+            </div>
+            <div class="entity-card__aside">
+              <button class="btn btn--legendary btn--sm">Visitar</button>
+            </div>
+          </div>
+          <div class="entity-card">
+            <div class="entity-card__avatar">⚗️</div>
+            <div class="entity-card__info">
+              <div class="entity-card__name">Alquimista Do-Won</div>
+              <div class="entity-card__meta">Poções e elixires · Aceita materiais como pagamento</div>
+              <div class="entity-card__tags"><span class="tag tag--azure">Alquimia</span><span class="tag tag--dim">Online</span></div>
+            </div>
+            <div class="entity-card__aside">
+              <button class="btn btn--skill btn--sm">Visitar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="page-footer">
+        <div class="page-footer__status"><div class="status-dot"></div>5 NPCs disponíveis</div>
+        <span>Estoque atualiza em 3 dias</span>
+      </div>
+    </section>
+
+    <!-- ====================================================
+         VIEW: BESTIÁRIO
+         ==================================================== -->
+    <section class="view" id="view-bestiario">
+      <div class="page-header">
+        <div class="page-header__left">
+          <div class="page-eyebrow">Enciclopédia</div>
+          <div class="page-title">Bestiário</div>
+          <div class="page-sub">47 entradas desbloqueadas · 12 sombras extraídas</div>
+        </div>
+        <div class="page-header__actions">
+          <button class="btn btn--primary btn--sm">Filtrar por Rank</button>
+        </div>
+      </div>
+
+      <div class="col-2-1">
+        <div>
+          <div class="panel">
+            <div class="panel__hdr"><span>Monstros Encontrados</span><div class="panel__dot"></div></div>
+            <div class="panel__body" style="padding:0;">
+              <div class="entity-card">
+                <div class="entity-card__avatar">👺</div>
+                <div class="entity-card__info">
+                  <div class="entity-card__name">Goblin Rei</div>
+                  <div class="entity-card__meta">Rank D · Tipo: Humanóide</div>
+                  <div class="entity-card__tags"><span class="tag tag--dim">Derrotado 8×</span><span class="tag tag--azure">Sombra extraída</span></div>
+                </div>
+                <div class="entity-card__aside"><div class="rank-badge rank-badge--d">D</div></div>
+              </div>
+              <div class="entity-card">
+                <div class="entity-card__avatar">🐺</div>
+                <div class="entity-card__info">
+                  <div class="entity-card__name">Lobo das Sombras</div>
+                  <div class="entity-card__meta">Rank C · Tipo: Besta</div>
+                  <div class="entity-card__tags"><span class="tag tag--dim">Derrotado 14×</span><span class="tag tag--azure">Sombra extraída</span></div>
+                </div>
+                <div class="entity-card__aside"><div class="rank-badge rank-badge--c">C</div></div>
+              </div>
+              <div class="entity-card">
+                <div class="entity-card__avatar">🪤</div>
+                <div class="entity-card__info">
+                  <div class="entity-card__name">Guardião de Ferro</div>
+                  <div class="entity-card__meta">Rank B · Tipo: Golem</div>
+                  <div class="entity-card__tags"><span class="tag tag--dim">Derrotado 2×</span><span class="tag tag--violet">Boss</span></div>
+                </div>
+                <div class="entity-card__aside"><div class="rank-badge rank-badge--b">B</div></div>
+              </div>
+              <div class="entity-card">
+                <div class="entity-card__avatar">🗡️</div>
+                <div class="entity-card__info">
+                  <div class="entity-card__name">Cavaleiro das Trevas (Igris)</div>
+                  <div class="entity-card__meta">Rank A · Tipo: Não-Morto Elite</div>
+                  <div class="entity-card__tags"><span class="tag tag--gold">Sombra Extraída</span><span class="tag tag--violet">Aliado ativo</span></div>
+                </div>
+                <div class="entity-card__aside"><div class="rank-badge rank-badge--a">A</div></div>
+              </div>
+              <div class="entity-card" style="opacity:.5;">
+                <div class="entity-card__avatar">❓</div>
+                <div class="entity-card__info">
+                  <div class="entity-card__name">??? — Monarca das Trevas</div>
+                  <div class="entity-card__meta">Rank S · Tipo: Desconhecido</div>
+                  <div class="entity-card__tags"><span class="tag tag--crimson">Não encontrado</span></div>
+                </div>
+                <div class="entity-card__aside"><div class="rank-badge rank-badge--s">S</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Painel de sombras -->
+        <div>
+          <div class="panel panel--gold">
+            <div class="panel__hdr"><span>🌑 Exército de Sombras</span><div class="panel__dot"></div></div>
+            <div class="panel__body" style="padding:0;">
+              <div class="mission-item">
+                <div class="mission-item__icon">🗡️</div>
+                <div class="mission-item__info">
+                  <div class="mission-item__name">Igris</div>
+                  <div class="mission-item__desc">Cavaleiro · Classe A</div>
+                </div>
+                <span class="tag tag--gold">Nv.42</span>
+              </div>
+              <div class="mission-item">
+                <div class="mission-item__icon">🐺</div>
+                <div class="mission-item__info">
+                  <div class="mission-item__name">Beru</div>
+                  <div class="mission-item__desc">Formiga · Classe S</div>
+                </div>
+                <span class="tag tag--gold">Nv.38</span>
+              </div>
+              <div class="mission-item">
+                <div class="mission-item__icon">👺</div>
+                <div class="mission-item__info">
+                  <div class="mission-item__name">Tusk</div>
+                  <div class="mission-item__desc">Goblin · Classe D</div>
+                </div>
+                <span class="tag tag--dim">Nv.18</span>
+              </div>
+            </div>
+            <div class="panel__footer"><span>Slots de sombra: 12/50</span></div>
+          </div>
+
+          <div class="panel">
+            <div class="panel__hdr"><span>Filtros</span><div class="panel__dot"></div></div>
+            <div class="panel__body" style="display:flex; flex-direction:column; gap:var(--sp-3);">
+              <div class="flex-between"><span class="fs-sm">Rank E</span><span class="rank-badge rank-badge--e" style="width:28px;height:32px;font-size:0.6rem;">E</span></div>
+              <div class="flex-between"><span class="fs-sm">Rank D</span><span class="rank-badge rank-badge--d" style="width:28px;height:32px;font-size:0.6rem;">D</span></div>
+              <div class="flex-between"><span class="fs-sm">Rank C</span><span class="rank-badge rank-badge--c" style="width:28px;height:32px;font-size:0.6rem;">C</span></div>
+              <div class="flex-between"><span class="fs-sm">Rank B</span><span class="rank-badge rank-badge--b" style="width:28px;height:32px;font-size:0.6rem;">B</span></div>
+              <div class="flex-between"><span class="fs-sm">Rank A</span><span class="rank-badge rank-badge--a" style="width:28px;height:32px;font-size:0.6rem;">A</span></div>
+              <div class="flex-between"><span class="fs-sm">Rank S</span><span class="rank-badge rank-badge--s" style="width:28px;height:32px;font-size:0.6rem;">S</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="page-footer">
+        <div class="page-footer__status"><div class="status-dot"></div>Bestiário atualizado</div>
+        <span>47 / 120 entradas desbloqueadas</span>
+      </div>
+    </section>
+
+    <!-- ====================================================
+         VIEW: RANKING
+         ==================================================== -->
+    <section class="view" id="view-ranking">
+      <div class="page-header">
+        <div class="page-header__left">
+          <div class="page-eyebrow">Classificação Global</div>
+          <div class="page-title">Ranking</div>
+          <div class="page-sub">Temporada 4 · Atualizado em tempo real</div>
+        </div>
+        <div class="page-header__actions">
+          <span class="tag tag--violet">Sua posição: #7</span>
+          <button class="btn btn--primary btn--sm">Meu Histórico</button>
+        </div>
+      </div>
+
+      <div class="g2">
+        <!-- Ranking global -->
+        <div>
+          <div class="panel">
+            <div class="panel__hdr"><span>Global — Pontuação</span><div class="panel__dot"></div></div>
+            <div class="panel__body" style="padding:0;">
+              <div class="rank-row-item">
+                <div class="rank-pos top">1</div>
+                <div class="rank-badge rank-badge--n" style="width:28px;height:32px;font-size:0.55rem;">N</div>
+                <div class="rank-player-name">Thomas Andre</div>
+                <span class="tag tag--gold">Nacional</span>
+                <div class="rank-score">4.220</div>
+              </div>
+              <div class="rank-row-item">
+                <div class="rank-pos top">2</div>
+                <div class="rank-badge rank-badge--s" style="width:28px;height:32px;font-size:0.55rem;">S</div>
+                <div class="rank-player-name">Liu Zhigang</div>
+                <span class="tag tag--crimson">S</span>
+                <div class="rank-score">3.810</div>
+              </div>
+              <div class="rank-row-item">
+                <div class="rank-pos">3</div>
+                <div class="rank-badge rank-badge--s" style="width:28px;height:32px;font-size:0.55rem;">S</div>
+                <div class="rank-player-name">Goto Ryuji</div>
+                <span class="tag tag--crimson">S</span>
+                <div class="rank-score">3.640</div>
+              </div>
+              <div class="rank-row-item">
+                <div class="rank-pos">4</div>
+                <div class="rank-badge rank-badge--a" style="width:28px;height:32px;font-size:0.55rem;">A</div>
+                <div class="rank-player-name">Cha Hae-In</div>
+                <span class="tag tag--violet">A</span>
+                <div class="rank-score">2.980</div>
+              </div>
+              <div class="rank-row-item">
+                <div class="rank-pos">5</div>
+                <div class="rank-badge rank-badge--a" style="width:28px;height:32px;font-size:0.55rem;">A</div>
+                <div class="rank-player-name">Choi Jong-In</div>
+                <span class="tag tag--violet">A</span>
+                <div class="rank-score">2.750</div>
+              </div>
+              <div class="rank-row-item">
+                <div class="rank-pos">6</div>
+                <div class="rank-badge rank-badge--a" style="width:28px;height:32px;font-size:0.55rem;">A</div>
+                <div class="rank-player-name">Park Heejin</div>
+                <span class="tag tag--violet">A</span>
+                <div class="rank-score">2.100</div>
+              </div>
+              <div class="rank-row-item" style="background:rgba(179,65,255,.08); border-left:2px solid var(--c-violet-core);">
+                <div class="rank-pos" style="color:var(--c-violet-core);">7</div>
+                <div class="rank-badge rank-badge--a" style="width:28px;height:32px;font-size:0.55rem;">A</div>
+                <div class="rank-player-name">Sung Jin-Woo <span class="tag tag--violet" style="font-size:0.55rem;">Você</span></div>
+                <span class="tag tag--violet">A</span>
+                <div class="rank-score">1.840</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <!-- Ranking de guilda -->
+          <div class="panel panel--gold">
+            <div class="panel__hdr"><span>Ranking de Guildas</span><div class="panel__dot"></div></div>
+            <div class="panel__body" style="padding:0;">
+              <div class="rank-row-item"><div class="rank-pos top">1</div><div class="rank-player-name">Hunters Association</div><div class="rank-score text-gold">92.400</div></div>
+              <div class="rank-row-item"><div class="rank-pos top">2</div><div class="rank-player-name">Scavenger Guild</div><div class="rank-score text-gold">71.200</div></div>
+              <div class="rank-row-item" style="background:rgba(255,210,76,.05);"><div class="rank-pos" style="color:var(--c-gold-core);">3</div><div class="rank-player-name">Exército das Sombras <span class="tag tag--violet" style="font-size:0.55rem;">Sua</span></div><div class="rank-score text-gold">48.200</div></div>
+              <div class="rank-row-item"><div class="rank-pos">4</div><div class="rank-player-name">The White Tiger</div><div class="rank-score text-gold">39.100</div></div>
+            </div>
+          </div>
+
+          <!-- Ranking de dungeons -->
+          <div class="panel panel--crimson">
+            <div class="panel__hdr"><span>Dungeons — Mais Rápido</span><div class="panel__dot"></div></div>
+            <div class="panel__body" style="padding:0;">
+              <div class="rank-row-item"><div class="rank-pos top">1</div><div class="rank-player-name">Thomas Andre</div><div class="rank-score text-crimson">4m 12s</div></div>
+              <div class="rank-row-item"><div class="rank-pos top">2</div><div class="rank-player-name">Goto Ryuji</div><div class="rank-score text-crimson">5m 44s</div></div>
+              <div class="rank-row-item"><div class="rank-pos">3</div><div class="rank-player-name">Sung Jin-Woo</div><div class="rank-score text-crimson">6m 30s</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="page-footer">
+        <div class="page-footer__status"><div class="status-dot"></div>Ranking em tempo real</div>
+        <span>Atualizado há 2 min</span>
+      </div>
+    </section>
+
+    <!-- ====================================================
+         VIEW: CONFIGURAÇÕES
+         ==================================================== -->
+    <section class="view" id="view-config">
+      <div class="page-header">
+        <div class="page-header__left">
+          <div class="page-eyebrow">Preferências</div>
+          <div class="page-title">Configurações</div>
+          <div class="page-sub">Sistema de Caçadores v0.4.2 Alpha</div>
+        </div>
+        <div class="page-header__actions">
+          <button class="btn btn--primary btn--sm">Salvar</button>
+        </div>
+      </div>
+
+      <div class="g2">
+        <!-- Áudio & Visual -->
+        <div>
+          <div class="panel">
+            <div class="panel__hdr"><span>🔊 Áudio</span><div class="panel__dot"></div></div>
+            <div class="panel__body">
+              <div class="config-row"><div class="config-row__info"><div class="config-row__label">Música de Fundo</div><div class="config-row__desc">Toca trilha sonora durante dungeons</div></div><div class="toggle on"></div></div>
+              <div class="config-row"><div class="config-row__info"><div class="config-row__label">Efeitos Sonoros</div><div class="config-row__desc">Sons de combate, notificações, UI</div></div><div class="toggle on"></div></div>
+              <div class="config-row"><div class="config-row__info"><div class="config-row__label">Voz dos NPCs</div><div class="config-row__desc">Diálogos narrados</div></div><div class="toggle"></div></div>
+              <div class="config-row"><div class="config-row__info"><div class="config-row__label">Volume Geral</div></div><select class="select-field"><option>100%</option><option>75%</option><option>50%</option><option>25%</option></select></div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel__hdr"><span>🎮 Controles</span><div class="panel__dot"></div></div>
+            <div class="panel__body">
+              <div class="config-row"><div class="config-row__info"><div class="config-row__label">Modo de Câmera</div></div><select class="select-field"><option>Top-Down</option><option>Isométrico</option></select></div>
+              <div class="config-row"><div class="config-row__info"><div class="config-row__label">Invertir Eixo Y</div><div class="config-row__desc">Câmera invertida no eixo vertical</div></div><div class="toggle"></div></div>
+              <div class="config-row"><div class="config-row__info"><div class="config-row__label">Vibração (mobile)</div></div><div class="toggle on"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Conta & Gráficos -->
+        <div>
+          <div class="panel panel--azure">
+            <div class="panel__hdr"><span>👤 Conta</span><div class="panel__dot"></div></div>
+            <div class="panel__body">
+              <div class="config-row"><div class="config-row__info"><div class="config-row__label">Nome de usuário</div></div><span class="font-heading text-azure">SungJinWoo_01</span></div>
+              <div class="config-row"><div class="config-row__info"><div class="config-row__label">E-mail</div></div><span class="fs-sm text-dim">s***@example.com</span></div>
+              <div class="config-row"><div class="config-row__info"><div class="config-row__label">Autenticação 2FA</div></div><div class="toggle on"></div></div>
+              <div class="config-row"><div class="config-row__info"><div class="config-row__label">Perfil público</div><div class="config-row__desc">Outros caçadores podem ver seu perfil</div></div><div class="toggle on"></div></div>
+              <hr class="divider">
+              <div class="flex-gap2">
+                <button class="btn btn--skill btn--sm">Alterar senha</button>
+                <button class="btn btn--danger btn--sm">Sair da conta</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel__hdr"><span>🖥️ Gráficos</span><div class="panel__dot"></div></div>
+            <div class="panel__body">
+              <div class="config-row"><div class="config-row__info"><div class="config-row__label">Qualidade Visual</div></div><select class="select-field"><option>Ultra</option><option>Alto</option><option>Médio</option><option>Baixo</option></select></div>
+              <div class="config-row"><div class="config-row__info"><div class="config-row__label">Partículas de Fundo</div><div class="config-row__desc">Efeito de partículas na UI</div></div><div class="toggle on"></div></div>
+              <div class="config-row"><div class="config-row__info"><div class="config-row__label">Glow / Neon</div><div class="config-row__desc">Efeito de brilho nos elementos</div></div><div class="toggle on"></div></div>
+              <div class="config-row"><div class="config-row__info"><div class="config-row__label">Reduzir movimento</div><div class="config-row__desc">Para quem tem sensibilidade</div></div><div class="toggle"></div></div>
+            </div>
+          </div>
+
+          <div class="panel panel--crimson">
+            <div class="panel__hdr"><span>⚠️ Zona de Perigo</span><div class="panel__dot"></div></div>
+            <div class="panel__body">
+              <div class="config-row"><div class="config-row__info"><div class="config-row__label">Exportar dados</div><div class="config-row__desc">Baixar todos os seus dados</div></div><button class="btn btn--skill btn--sm">Exportar</button></div>
+              <div class="config-row"><div class="config-row__info"><div class="config-row__label">Deletar personagem</div><div class="config-row__desc">Ação irreversível</div></div><button class="btn btn--danger btn--sm">Deletar</button></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="page-footer">
+        <div class="page-footer__status"><div class="status-dot"></div>Configurações salvas</div>
+        <span>v0.4.2 Alpha · Build #1042</span>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- HOTBAR -->
+<div class="app-hotbar">
+  <div class="hotbar-slot active" id="hb-home" onclick="navigate('home')">
+    <span class="hotbar-slot__num">1</span>
+    <span class="hotbar-slot__icon">🏠</span>
+    <span class="hotbar-slot__label">Home</span>
+  </div>
+  <div class="hotbar-slot" id="hb-inventario" onclick="navigate('inventario')">
+    <span class="hotbar-slot__num">2</span>
+    <span class="hotbar-slot__icon">🎒</span>
+    <span class="hotbar-slot__label">Inventário</span>
+  </div>
+  <div class="hotbar-slot" id="hb-perfil" onclick="navigate('perfil')">
+    <span class="hotbar-slot__num">3</span>
+    <span class="hotbar-slot__icon">👤</span>
+    <span class="hotbar-slot__label">Perfil</span>
+  </div>
+  <div class="hotbar-slot" id="hb-missoes" onclick="navigate('missoes')">
+    <span class="hotbar-slot__num">4</span>
+    <span class="hotbar-slot__icon">📜</span>
+    <span class="hotbar-slot__label">Missões</span>
+  </div>
+  <div class="hotbar-slot" id="hb-mapa" onclick="navigate('mapa')">
+    <span class="hotbar-slot__num">5</span>
+    <span class="hotbar-slot__icon">🗺️</span>
+    <span class="hotbar-slot__label">Mapa</span>
+  </div>
+  <div class="hotbar-slot" id="hb-loja" onclick="navigate('loja')">
+    <span class="hotbar-slot__num">6</span>
+    <span class="hotbar-slot__icon">🛒</span>
+    <span class="hotbar-slot__label">Loja</span>
+  </div>
+  <div class="hotbar-sep"></div>
+  <div class="hotbar-slot hotbar-slot--more" id="hb-more" onclick="toggleMore()">
+    <span class="hotbar-slot__icon">⋯</span>
+    <span class="hotbar-slot__label">Mais</span>
+  </div>
+</div>
+
+<script src="./auth-player.js"></script>
+<script src="./inventory-etapa5.js"></script>
+<script src="./lore-etapa6.js"></script>
+<script src="./choice-etapa7.js"></script>
+<script src="./eventos-etapa8.js"></script>
+<script src="./combat-etapa9.js"></script>
+<script src="./boss-etapa10.js"></script>
+<script src="./bridge-etapa11.js"></script>
+<script src="./effects-etapa11.js"></script>
+<script src="./eventos-etapa12.js"></script>
+<script src="./effects-etapa13.js"></script>
+<script src="./eventos-etapa13.js"></script>
+<script src="./effects-etapa14.js"></script>
+<script src="./eventos-etapa14.js"></script>
+<script>
+/* Boot das etapas 6-14 (sem renderizar UI extra; apenas disponibiliza helpers/motores/efeitos) */
+(() => {
+  // Hooks exportam via window (SL_EffectsEtapa11/13/14 + SL_EventosEtapa12/13/14)
+})();
+
+
+/* ============================================================
+   NAVEGAÇÃO SPA
+   ============================================================ */
+
+
+const HOTBAR_PAGES = ['home','inventario','perfil','missoes','mapa','loja'];
+const ALL_PAGES = ['home','inventario','perfil','loja','mapa','missoes','guilda','arena','npcs','bestiario','ranking','config'];
+
+let currentPage = 'home';
+let moreOpen = false;
+
+function navigate(page) {
+  if (!ALL_PAGES.includes(page)) return;
+
+  // Desativa todas as views
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.hotbar-slot').forEach(s => s.classList.remove('active'));
+
+  // Ativa a view alvo
+  const view = document.getElementById('view-' + page);
+  if (view) view.classList.add('active');
+
+  // Ativa item no sidebar
+  const navItem = document.querySelector(`.nav-item[onclick="navigate('${page}')"]`);
+  if (navItem) navItem.classList.add('active');
+
+  // Ativa slot no hotbar (se existir)
+  if (HOTBAR_PAGES.includes(page)) {
+    const slot = document.getElementById('hb-' + page);
+    if (slot) slot.classList.add('active');
+  }
+
+  currentPage = page;
+  closeMore();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  showToast('Navegando para ' + page.charAt(0).toUpperCase() + page.slice(1));
+}
+
+/* ============================================================
+   MORE MENU
+   ============================================================ */
+function toggleMore() {
+  moreOpen = !moreOpen;
+  const menu = document.getElementById('moreMenu');
+  const btn = document.getElementById('hb-more');
+  menu.classList.toggle('open', moreOpen);
+  btn.classList.toggle('active', moreOpen);
+}
+
+function closeMore() {
+  moreOpen = false;
+  document.getElementById('moreMenu').classList.remove('open');
+  document.getElementById('hb-more').classList.remove('active');
+}
+
+document.addEventListener('click', e => {
+  const hotbar = document.querySelector('.app-hotbar');
+  const menu = document.getElementById('moreMenu');
+  if (moreOpen && !hotbar.contains(e.target) && !menu.contains(e.target)) {
+    closeMore();
+  }
+});
+
+/* ============================================================
+   ATALHOS DE TECLADO (1-6 = hotbar, ESC = fecha more menu)
+   ============================================================ */
+document.addEventListener('keydown', e => {
+  const key = e.key;
+  if (key === 'Escape') { closeMore(); return; }
+  const num = parseInt(key);
+  if (num >= 1 && num <= 6) {
+    navigate(HOTBAR_PAGES[num - 1]);
+  }
+});
+
+/* ============================================================
+   TOAST
+   ============================================================ */
+function showToast(msg) {
+  const container = document.getElementById('toasts');
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  container.appendChild(t);
+  requestAnimationFrame(() => { t.classList.add('show'); });
+  setTimeout(() => {
+    t.classList.remove('show');
+    setTimeout(() => t.remove(), 300);
+  }, 1800);
+}
+
+/* ============================================================
+   PARTÍCULAS
+   ============================================================ */
+const ph = document.getElementById('particles');
+for (let i = 0; i < 22; i++) {
+  const p = document.createElement('span');
+  p.className = 'particle';
+  p.style.left = Math.random() * 100 + 'vw';
+  p.style.bottom = '-6px';
+  p.style.animationDuration = (9 + Math.random() * 10) + 's';
+  p.style.animationDelay = (Math.random() * 9) + 's';
+  ph.appendChild(p);
+}
+
+/* ============================================================
+   TOGGLES DE CONFIGURAÇÃO (visual apenas)
+   ============================================================ */
+document.querySelectorAll('.toggle').forEach(t => {
+  t.addEventListener('click', () => t.classList.toggle('on'));
+});
+</script>
+</body>
+</html>
