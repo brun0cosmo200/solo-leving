@@ -148,7 +148,7 @@
       'Orbe': 'Armazena ecos de mana e os devolve em silêncio.',
       'Pergaminho': 'As palavras são lâminas — e o pergaminho sabe quando abrir.'
     };
-    return `${flavor[type] || 'Revela segredos ao contato com o usuário.'} Uso imprevisível no Submundo.`;
+    return `${flavor[type] || 'Revela segredos ao contato com o usuário.'} Uso imprevisível no Submundo.`;
   }
 
   function historyForItem(i, rarity) {
@@ -159,7 +159,7 @@
     ];
     const extra = {
       'Comum': 'Começou como sucata e terminou como ferramenta fiel.',
-      'Incomum': 'Um artesão anônimo jurou que “ouvia” o metal.',
+      'Incomum': 'Um artesão anônimo jurou que "ouvia" o metal.',
       'Raro': 'A primeira vez que brilhou, alguém perdeu o medo.',
       'Épico': 'Mantém a promessa de transformar dor em avanço.',
       'Lendário': 'Diz-se que foi tocado por um monarca invisível.',
@@ -202,6 +202,29 @@
 
   function saveInventory(items) {
     localStorage.setItem(LS_KEY, JSON.stringify(items));
+  }
+
+  // ---------------------------------------------------------------
+  // addItem: insere um item ganho (drop/compra) no inventário real.
+  // data pode ser um objeto parcial — campos ausentes são gerados
+  // com base num índice único para manter a arte/tipo consistentes.
+  // ---------------------------------------------------------------
+  function addItem(data) {
+    const items = loadInventory();
+    const idx = items.length + 1;
+    const base = makeItem(idx);
+    const item = Object.assign({}, base, data || {}, {
+      id: 'it_drop_' + Date.now() + '_' + Math.floor(Math.random() * 1e5),
+      seed: data && data.seed ? data.seed : 'drop_' + idx,
+    });
+    items.push(item);
+    saveInventory(items);
+    // Re-renderiza se o inventário estiver visível agora
+    const view = document.getElementById('view-inventario');
+    if (view && view.classList.contains('active')) {
+      renderInventoryGrid(items);
+    }
+    return item;
   }
 
   function installStylesOnce() {
@@ -302,7 +325,7 @@
     // Limpa grid e renderiza cards
     grid.innerHTML = '';
 
-    const visibleCount = 8; // mantém compatível com o texto atual “Mostrando 8 de 136” (mock)
+    const visibleCount = 8; // mantém compatível com o texto atual "Mostrando 8 de 136" (mock)
     const slice = items.slice(0, visibleCount);
 
     slice.forEach((it) => {
@@ -444,9 +467,9 @@
   function escapeHtml(str) {
     return String(str)
       .replaceAll('&', '&amp;')
-      .replaceAll('<', '<')
-      .replaceAll('>', '>')
-      .replaceAll('"', '"')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
       .replaceAll("'", '&#039;');
   }
 
@@ -464,7 +487,7 @@
     const observer = new MutationObserver(() => {
       const view = document.getElementById('view-inventario');
       if (view && view.classList.contains('active')) {
-        renderInventoryGrid(items);
+        renderInventoryGrid(loadInventory());
       }
     });
 
@@ -472,5 +495,12 @@
   }
 
   document.addEventListener('DOMContentLoaded', init);
-})();
 
+  // ---------------------------------------------------------------
+  // API pública — usada por shop.js, dungeon.js, combat-etapa9.js
+  // ---------------------------------------------------------------
+  window.SL_InventoryEtapa5 = {
+    addItem,
+    getItems: loadInventory,
+  };
+})();

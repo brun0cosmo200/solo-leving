@@ -190,9 +190,9 @@ a{ color: var(--c-azure-core); text-decoration:none; }
   clip-path: polygon(4px 0,100% 0,100% calc(100% - 4px),calc(100% - 4px) 100%,0 100%,0 4px);
 }
 .mini-bar__fill{ height:100%; }
-.mini-bar--hp .mini-bar__fill{ background: linear-gradient(90deg,var(--c-crimson-deep),var(--c-crimson-core)); width:72%; }
-.mini-bar--mp .mini-bar__fill{ background: linear-gradient(90deg,var(--c-azure-deep),var(--c-azure-core)); width:60%; }
-.mini-bar--xp .mini-bar__fill{ background: linear-gradient(90deg,var(--c-violet-deep),var(--c-gold-core)); width:38%; }
+.mini-bar--hp .mini-bar__fill{ background: linear-gradient(90deg,var(--c-crimson-deep),var(--c-crimson-core)); width:0%; }
+.mini-bar--mp .mini-bar__fill{ background: linear-gradient(90deg,var(--c-azure-deep),var(--c-azure-core)); width:0%; }
+.mini-bar--xp .mini-bar__fill{ background: linear-gradient(90deg,var(--c-violet-deep),var(--c-gold-core)); width:0%; }
 
 /* Rank badge no header */
 .rank-hex{
@@ -845,6 +845,64 @@ a{ color: var(--c-azure-core); text-decoration:none; }
   pointer-events:auto;
 }
 .toast.show{ opacity:1; transform:translateX(0); }
+
+/* ============================================================
+   AUTH FLOW — login / registro / recuperação / criação de personagem
+   ============================================================ */
+#app-root{ display:none; }
+#app-root.active{ display:block; }
+
+#auth-flow{ display:none; min-height:100vh; position:relative; z-index:2; }
+#auth-flow.active{ display:block; }
+
+.auth-stage{
+  min-height:100vh; display:flex; align-items:center; justify-content:center;
+  padding: var(--sp-6) var(--sp-4);
+}
+.auth-card{ width:100%; max-width:420px; }
+.auth-brand{
+  font-family: var(--font-display); font-size: var(--fs-md); letter-spacing:.08em;
+  text-align:center; margin-bottom: var(--sp-3);
+}
+.auth-form{ display:flex; flex-direction:column; gap: var(--sp-3); }
+.auth-label{
+  display:block; font-family: var(--font-heading); font-size: var(--fs-xs); text-transform:uppercase;
+  letter-spacing:.06em; color: var(--c-text-dim); margin-bottom: var(--sp-1);
+}
+.text-field, .auth-form select.select-field{
+  background:var(--c-abyss); border:1px solid var(--c-border-faint);
+  color:var(--c-text); font-family:var(--font-body); font-size:var(--fs-sm);
+  padding: var(--sp-3); width:100%;
+  clip-path: polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px);
+}
+.text-field:focus{ outline:none; border-color:var(--c-violet-core); box-shadow:var(--glow-violet); }
+.auth-links{
+  display:flex; justify-content:space-between; gap:var(--sp-3); margin-top: var(--sp-4);
+  font-size: var(--fs-xs);
+}
+.auth-link{ color: var(--c-azure-core); cursor:pointer; }
+.auth-link:hover{ text-decoration:underline; }
+
+.family-pick{ display:flex; gap: var(--sp-2); flex-wrap:wrap; margin-top:var(--sp-2); }
+.family-pick__btn{
+  flex:1; min-width:120px; text-align:center; padding: var(--sp-2) var(--sp-3);
+  border:1px solid var(--c-border-faint); background:var(--c-abyss);
+  font-family:var(--font-heading); font-size:var(--fs-xs); cursor:pointer;
+  clip-path: polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px);
+}
+.family-pick__btn:hover{ border-color:var(--c-violet-core); color:var(--c-violet-core); }
+
+.loading-stage{
+  min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap: var(--sp-5);
+}
+.loading-ring{
+  width:64px; height:64px; border-radius:50%;
+  border:3px solid var(--c-violet-dim); border-top-color:var(--c-violet-core);
+  animation: auth-spin 900ms linear infinite;
+}
+@keyframes auth-spin{ to{ transform:rotate(360deg); } }
+#loading-text{ font-family:var(--font-heading); letter-spacing:.05em; color:var(--c-text-dim); }
 </style>
 </head>
 <body>
@@ -865,8 +923,138 @@ a{ color: var(--c-azure-core); text-decoration:none; }
 </div>
 
 <!-- ============================================================
+     AUTH FLOW (login / registro / recuperação / criação de personagem)
+     ============================================================ -->
+<div id="auth-flow" class="active">
+
+  <section class="view active" id="view-login">
+    <div class="auth-stage">
+      <div class="auth-card panel panel--azure">
+        <div class="panel__hdr"><span>⚡ Acessar o Sistema</span><div class="panel__dot"></div></div>
+        <div class="panel__body">
+          <div class="auth-brand">SISTEMA <span class="text-violet">DE CAÇADORES</span></div>
+          <p class="fs-sm text-dim mb4" style="text-align:center;">Entre com seu nome de caçador para continuar.</p>
+          <form id="form-login" class="auth-form">
+            <div>
+              <label class="auth-label">Nome de usuário</label>
+              <input class="text-field" type="text" name="username" placeholder="Ex: CaçadorSombrio" autocomplete="username" required>
+            </div>
+            <button type="submit" class="btn btn--primary" style="width:100%; margin-top:var(--sp-2);">Entrar</button>
+          </form>
+          <div class="auth-links">
+            <span class="auth-link" id="go-register">Criar conta</span>
+            <span class="auth-link" id="go-recovery">Esqueci minha senha</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="view" id="view-register">
+    <div class="auth-stage">
+      <div class="auth-card panel">
+        <div class="panel__hdr"><span>🆕 Criar Conta</span><div class="panel__dot"></div></div>
+        <div class="panel__body">
+          <form id="form-register" class="auth-form">
+            <div>
+              <label class="auth-label">Nome de usuário</label>
+              <input class="text-field" type="text" name="username" placeholder="Escolha um nome" required>
+            </div>
+            <div>
+              <label class="auth-label">E-mail</label>
+              <input class="text-field" type="email" name="email" placeholder="seu@email.com" required>
+            </div>
+            <button type="submit" class="btn btn--primary" style="width:100%; margin-top:var(--sp-2);">Criar conta</button>
+          </form>
+          <div class="auth-links">
+            <span class="auth-link js-back-to-login">Já tenho conta — voltar ao login</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="view" id="view-recovery">
+    <div class="auth-stage">
+      <div class="auth-card panel panel--gold">
+        <div class="panel__hdr"><span>🔑 Recuperar Acesso</span><div class="panel__dot"></div></div>
+        <div class="panel__body">
+          <form id="form-recovery" class="auth-form">
+            <div>
+              <label class="auth-label">E-mail cadastrado</label>
+              <input class="text-field" type="email" name="email-recovery" placeholder="seu@email.com" required>
+            </div>
+            <button type="submit" class="btn btn--legendary" style="width:100%; margin-top:var(--sp-2);">Enviar instruções</button>
+          </form>
+          <div class="auth-links">
+            <span class="auth-link js-back-to-login">Voltar ao login</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="view" id="view-character">
+    <div class="auth-stage">
+      <div class="auth-card panel" style="max-width:520px;">
+        <div class="panel__hdr"><span>🧬 Criação de Personagem</span><div class="panel__dot"></div></div>
+        <div class="panel__body">
+          <p class="fs-sm text-dim mb4">Defina a identidade do seu caçador. Nível, atributos e recursos iniciais são padronizados pelo Sistema — você evolui isso jogando.</p>
+          <form id="form-character" class="auth-form">
+            <div>
+              <label class="auth-label">Nome do personagem</label>
+              <input class="text-field" type="text" name="char-name" placeholder="Ex: Caçador Sombrio" required>
+            </div>
+            <div>
+              <label class="auth-label">Classe</label>
+              <select class="select-field" name="char-classe" style="width:100%;">
+                <option value="Vigilante">Vigilante</option>
+                <option value="Berserker">Berserker</option>
+                <option value="Mago Arcano">Mago Arcano</option>
+                <option value="Atirador">Atirador</option>
+                <option value="Curandeiro">Curandeiro</option>
+              </select>
+            </div>
+            <div>
+              <label class="auth-label">Família</label>
+              <select class="select-field" id="char-family" name="char-family" style="width:100%;">
+                <option value="Casa Violet">Casa Violet</option>
+                <option value="Lin de Ferro-Quente">Lin de Ferro-Quente</option>
+                <option value="Casa do Espelho Partido">Casa do Espelho Partido</option>
+              </select>
+              <div class="family-pick">
+                <div class="family-pick__btn" data-character-family="Casa Violet">Casa Violet</div>
+                <div class="family-pick__btn" data-character-family="Lin de Ferro-Quente">Lin de Ferro-Quente</div>
+                <div class="family-pick__btn" data-character-family="Casa do Espelho Partido">Espelho Partido</div>
+              </div>
+            </div>
+            <div>
+              <label class="auth-label">Origem</label>
+              <select class="select-field" name="char-origin" style="width:100%;">
+                <option value="Sistema">Sistema</option>
+                <option value="Distrito">Distrito</option>
+              </select>
+            </div>
+            <button type="submit" class="btn btn--primary" style="width:100%; margin-top:var(--sp-2);">Confirmar Caçador</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="view" id="view-loading">
+    <div class="loading-stage">
+      <div class="loading-ring"></div>
+      <div id="loading-text">Inicializando...</div>
+    </div>
+  </section>
+
+</div>
+
+<!-- ============================================================
      SHELL
      ============================================================ -->
+<div id="app-root">
 <div class="shell">
 
   <!-- HEADER -->
@@ -875,23 +1063,23 @@ a{ color: var(--c-azure-core); text-decoration:none; }
     <div class="app-header__divider"></div>
 
     <div class="player-hud">
-      <div class="rank-hex">A</div>
+      <div class="rank-hex" id="rank-hex-hud">E</div>
       <div class="player-hud__info">
-        <div class="player-hud__name">Sung Jin-Woo</div>
-        <div class="player-hud__sub">Lv. 74 · Monarca das Sombras</div>
+        <div class="player-hud__name" id="hud-name">Caçador</div>
+        <div class="player-hud__sub" id="hud-sub">Lv. 1 · Iniciante</div>
       </div>
       <div class="player-hud__bars">
         <div class="mini-bar mini-bar--hp">
           <span class="mini-bar__label">HP</span>
-          <div class="mini-bar__track"><div class="mini-bar__fill"></div></div>
+          <div class="mini-bar__track"><div class="mini-bar__fill" id="hud-hp-fill"></div></div>
         </div>
         <div class="mini-bar mini-bar--mp">
           <span class="mini-bar__label">MP</span>
-          <div class="mini-bar__track"><div class="mini-bar__fill"></div></div>
+          <div class="mini-bar__track"><div class="mini-bar__fill" id="hud-mp-fill"></div></div>
         </div>
         <div class="mini-bar mini-bar--xp">
           <span class="mini-bar__label">XP</span>
-          <div class="mini-bar__track"><div class="mini-bar__fill"></div></div>
+          <div class="mini-bar__track"><div class="mini-bar__fill" id="hud-xp-fill"></div></div>
         </div>
       </div>
     </div>
@@ -899,7 +1087,7 @@ a{ color: var(--c-azure-core); text-decoration:none; }
     <div class="app-header__actions">
       <button class="hdr-btn notif-dot">Notificações</button>
       <button class="hdr-btn">Configurações</button>
-      <button class="hdr-btn" style="color:var(--c-crimson-core); border-color:rgba(255,43,78,.3);">Sair</button>
+      <button class="hdr-btn" style="color:var(--c-crimson-core); border-color:rgba(255,43,78,.3);" onclick="AuthPlayer.logout()">Sair</button>
     </div>
   </header>
 
@@ -961,25 +1149,25 @@ a{ color: var(--c-azure-core); text-decoration:none; }
       <div class="g4 mb5">
         <div class="panel" style="margin-bottom:0;">
           <div class="panel__body" style="text-align:center;">
-            <div class="font-display text-violet" style="font-size:var(--fs-xl);">74</div>
+            <div class="font-display text-violet" style="font-size:var(--fs-xl);" id="home-nivel">—</div>
             <div class="fs-xs uppercase text-faint mt4">Nível atual</div>
           </div>
         </div>
         <div class="panel" style="margin-bottom:0;">
           <div class="panel__body" style="text-align:center;">
-            <div class="font-display text-crimson" style="font-size:var(--fs-xl);">312</div>
+            <div class="font-display text-crimson" style="font-size:var(--fs-xl);">—</div>
             <div class="fs-xs uppercase text-faint mt4">Monstros derrotados</div>
           </div>
         </div>
         <div class="panel" style="margin-bottom:0;">
           <div class="panel__body" style="text-align:center;">
-            <div class="font-display text-gold" style="font-size:var(--fs-xl);">48</div>
+            <div class="font-display text-gold" style="font-size:var(--fs-xl);">—</div>
             <div class="fs-xs uppercase text-faint mt4">Sombras extraídas</div>
           </div>
         </div>
         <div class="panel" style="margin-bottom:0;">
           <div class="panel__body" style="text-align:center;">
-            <div class="font-display text-azure" style="font-size:var(--fs-xl);">7</div>
+            <div class="font-display text-azure" style="font-size:var(--fs-xl);">—</div>
             <div class="fs-xs uppercase text-faint mt4">Dungeons completas</div>
           </div>
         </div>
@@ -992,23 +1180,8 @@ a{ color: var(--c-azure-core); text-decoration:none; }
           <div class="panel panel--crimson">
             <div class="panel__hdr"><span>Missão Ativa</span><div class="panel__dot"></div></div>
             <div class="panel__body">
-              <div class="flex-between mb4">
-                <div>
-                  <div class="font-heading" style="font-size:var(--fs-md);">Dungeon de Ferro — Andar B2</div>
-                  <div class="flex-gap2 mt4">
-                    <span class="tag tag--crimson">Em andamento</span>
-                    <span class="tag tag--dim">Rank B</span>
-                  </div>
-                </div>
-                <button class="btn btn--danger btn--sm">Continuar</button>
-              </div>
-              <div class="stat-bar">
-                <div class="stat-bar__label"><span>Progresso</span><span>67%</span></div>
-                <div class="stat-bar__track"><div class="stat-bar__fill stat-bar--xp" style="width:67%"></div></div>
-              </div>
-              <div class="flex-between mt4 text-faint fs-xs uppercase">
-                <span>Objetivo: Derrotar o Guardião</span>
-                <span>Recompensa: 4.200 XP</span>
+              <div class="fs-sm text-faint" style="text-align:center; padding:var(--sp-3) 0;">
+                🔒 Sistema de missões ainda não implementado.
               </div>
             </div>
           </div>
@@ -1016,41 +1189,11 @@ a{ color: var(--c-azure-core); text-decoration:none; }
           <!-- Atividade recente -->
           <div class="panel">
             <div class="panel__hdr"><span>Atividade Recente</span><div class="panel__dot"></div></div>
-            <div class="panel__body" style="padding:0;">
-              <div class="mission-item">
-                <div class="mission-item__icon">⚔️</div>
-                <div class="mission-item__info">
-                  <div class="mission-item__name">Goblin Rei derrotado</div>
-                  <div class="mission-item__desc">Dungeon de Pedra — Andar B1 · +820 XP</div>
-                </div>
-                <div class="tag tag--dim">2h atrás</div>
-              </div>
-              <div class="mission-item">
-                <div class="mission-item__icon">👥</div>
-                <div class="mission-item__info">
-                  <div class="mission-item__name">Sombra "Igris" extraída</div>
-                  <div class="mission-item__desc">Cavaleiro das Trevas — Classe A</div>
-                </div>
-                <div class="tag tag--violet">Novo</div>
-              </div>
-              <div class="mission-item">
-                <div class="mission-item__icon">🛒</div>
-                <div class="mission-item__info">
-                  <div class="mission-item__name">Item comprado na Loja</div>
-                  <div class="mission-item__desc">Elixir de Mana × 3 · –1.500 moedas</div>
-                </div>
-                <div class="tag tag--dim">Ontem</div>
-              </div>
-              <div class="mission-item">
-                <div class="mission-item__icon">🏆</div>
-                <div class="mission-item__info">
-                  <div class="mission-item__name">Rank subiu para A</div>
-                  <div class="mission-item__desc">Avaliação da Associação de Caçadores</div>
-                </div>
-                <div class="tag tag--gold">Conquista</div>
+            <div class="panel__body">
+              <div class="fs-sm text-faint" style="text-align:center; padding:var(--sp-3) 0;">
+                🔒 Nenhuma atividade é registrada ainda.
               </div>
             </div>
-            <div class="panel__footer"><span>Ver histórico completo</span><span class="text-violet" style="cursor:pointer;">→</span></div>
           </div>
         </div>
 
@@ -1061,33 +1204,20 @@ a{ color: var(--c-azure-core); text-decoration:none; }
             <div class="panel__hdr"><span>Status</span><div class="panel__dot"></div></div>
             <div class="panel__body">
               <div class="stat-bar">
-                <div class="stat-bar__label"><span>HP</span><span>8.400 / 10.200</span></div>
-                <div class="stat-bar__track"><div class="stat-bar__fill stat-bar--hp" style="width:82%"></div></div>
+                <div class="stat-bar__label"><span>HP</span><span id="home-hp-label">— / —</span></div>
+                <div class="stat-bar__track"><div class="stat-bar__fill stat-bar--hp" id="home-hp-fill" style="width:0%"></div></div>
               </div>
               <div class="stat-bar">
-                <div class="stat-bar__label"><span>MP</span><span>3.100 / 5.000</span></div>
-                <div class="stat-bar__track"><div class="stat-bar__fill stat-bar--mp" style="width:62%"></div></div>
+                <div class="stat-bar__label"><span>MP</span><span id="home-mp-label">— / —</span></div>
+                <div class="stat-bar__track"><div class="stat-bar__fill stat-bar--mp" id="home-mp-fill" style="width:0%"></div></div>
               </div>
               <div class="stat-bar">
-                <div class="stat-bar__label"><span>XP</span><span>38%</span></div>
-                <div class="stat-bar__track"><div class="stat-bar__fill stat-bar--xp" style="width:38%"></div></div>
+                <div class="stat-bar__label"><span>XP</span><span id="home-xp-label">—%</span></div>
+                <div class="stat-bar__track"><div class="stat-bar__fill stat-bar--xp" id="home-xp-fill" style="width:0%"></div></div>
               </div>
               <hr class="divider">
-              <div class="flex-between mb2">
-                <span class="text-faint fs-xs uppercase">Força</span>
-                <span class="font-display text-violet fs-xs">284</span>
-              </div>
-              <div class="flex-between mb2">
-                <span class="text-faint fs-xs uppercase">Agilidade</span>
-                <span class="font-display text-violet fs-xs">319</span>
-              </div>
-              <div class="flex-between mb2">
-                <span class="text-faint fs-xs uppercase">Inteligência</span>
-                <span class="font-display text-violet fs-xs">510</span>
-              </div>
-              <div class="flex-between">
-                <span class="text-faint fs-xs uppercase">Sentido</span>
-                <span class="font-display text-violet fs-xs">488</span>
+              <div class="fs-xs text-faint" style="text-align:center; padding:var(--sp-2) 0;">
+                🔒 Atributos (Força/Agilidade/etc.) ainda não implementados.
               </div>
             </div>
           </div>
@@ -1096,7 +1226,7 @@ a{ color: var(--c-azure-core); text-decoration:none; }
           <div class="panel panel--gold">
             <div class="panel__hdr"><span>Carteira</span><div class="panel__dot"></div></div>
             <div class="panel__body" style="text-align:center;">
-              <div class="font-display text-gold" style="font-size:var(--fs-xl);">84.320</div>
+              <div class="font-display text-gold" style="font-size:var(--fs-xl);" id="home-coins">—</div>
               <div class="fs-xs uppercase text-faint">Moedas do Sistema</div>
               <button class="btn btn--legendary btn--sm" style="margin-top:var(--sp-4); width:100%;">Ir à Loja</button>
             </div>
@@ -1192,7 +1322,7 @@ a{ color: var(--c-azure-core); text-decoration:none; }
               </div>
             </div>
             <div class="panel__body">
-              <div class="ga">
+              <div class="ga" id="inv-all-items-grid">
                 <div class="item-card item-card--lend"><div class="item-card__icon">⚔️</div><div class="item-card__name">Espada do Monarca</div><div class="item-card__tag">Lendário</div></div>
                 <div class="item-card item-card--epico"><div class="item-card__icon">🗡️</div><div class="item-card__name">Adaga das Sombras</div><div class="item-card__tag">Épico</div></div>
                 <div class="item-card item-card--raro"><div class="item-card__icon">🏹</div><div class="item-card__name">Arco Espectral</div><div class="item-card__tag">Raro</div></div>
@@ -1222,11 +1352,11 @@ a{ color: var(--c-azure-core); text-decoration:none; }
         <div class="page-header__left">
           <div class="page-eyebrow">Caçador</div>
           <div class="page-title">Perfil</div>
-          <div class="page-sub">Sung Jin-Woo · ID #000001</div>
+          <div class="page-sub" id="pf-subline">—</div>
         </div>
         <div class="page-header__actions">
-          <button class="btn btn--skill btn--sm">Editar Perfil</button>
-          <button class="btn btn--primary btn--sm">Distribuir Pontos</button>
+          <button class="btn btn--skill btn--sm" onclick="window.SL_PerfilView && window.SL_PerfilView.notImplemented('Editar Perfil')">Editar Perfil</button>
+          <button class="btn btn--primary btn--sm" onclick="window.SL_PerfilView && window.SL_PerfilView.notImplemented('Distribuir Pontos')">Distribuir Pontos</button>
         </div>
       </div>
 
@@ -1236,34 +1366,22 @@ a{ color: var(--c-azure-core); text-decoration:none; }
           <div class="panel panel--gold">
             <div class="panel__body" style="text-align:center;">
               <div style="font-size:4rem; margin-bottom:var(--sp-3);">🧍‍♂️</div>
-              <div class="font-display" style="font-size:var(--fs-md);">SUNG JIN-WOO</div>
-              <div class="text-dim fs-sm mt4">Monarca das Sombras</div>
+              <div class="font-display" style="font-size:var(--fs-md);" id="pf-name">—</div>
+              <div class="text-dim fs-sm mt4" id="pf-title">—</div>
               <div class="flex-gap2" style="justify-content:center; margin-top:var(--sp-4);">
-                <div class="rank-badge rank-badge--a">A</div>
+                <div class="rank-badge" id="pf-rank-badge">—</div>
                 <div>
-                  <div class="font-heading" style="font-size:var(--fs-md);">Rank A</div>
-                  <div class="fs-xs text-faint">Associação de Caçadores</div>
+                  <div class="font-heading" style="font-size:var(--fs-md);" id="pf-rank-label">Rank —</div>
+                  <div class="fs-xs text-faint" id="pf-rank-title">—</div>
                 </div>
               </div>
             </div>
           </div>
           <div class="panel">
             <div class="panel__hdr"><span>Habilidades Passivas</span><div class="panel__dot"></div></div>
-            <div class="panel__body" style="display:flex; flex-direction:column; gap:var(--sp-3);">
-              <div class="flex-between">
-                <span class="fs-sm">Dominação das Sombras</span><span class="tag tag--violet">Ativo</span>
-              </div>
-              <div class="flex-between">
-                <span class="fs-sm">Visão nas Trevas</span><span class="tag tag--violet">Ativo</span>
-              </div>
-              <div class="flex-between">
-                <span class="fs-sm">Regeneração Acelerada</span><span class="tag tag--azure">Passivo</span>
-              </div>
-              <div class="flex-between">
-                <span class="fs-sm">Senso de Combate</span><span class="tag tag--azure">Passivo</span>
-              </div>
-              <div class="flex-between">
-                <span class="fs-sm">Resistência ao Medo</span><span class="tag tag--dim">Bloqueado</span>
+            <div class="panel__body">
+              <div class="fs-sm text-faint" style="text-align:center; padding:var(--sp-3) 0;">
+                🔒 Sistema de habilidades ainda não implementado.
               </div>
             </div>
           </div>
@@ -1274,41 +1392,21 @@ a{ color: var(--c-azure-core); text-decoration:none; }
           <div class="panel">
             <div class="panel__hdr"><span>Atributos</span><div class="panel__dot"></div></div>
             <div class="panel__body">
-              <div class="stat-bar">
-                <div class="stat-bar__label"><span>Força</span><span>284 pts</span></div>
-                <div class="stat-bar__track"><div class="stat-bar__fill stat-bar--hp" style="width:56%"></div></div>
-              </div>
-              <div class="stat-bar">
-                <div class="stat-bar__label"><span>Agilidade</span><span>319 pts</span></div>
-                <div class="stat-bar__track"><div class="stat-bar__fill stat-bar--mp" style="width:64%"></div></div>
-              </div>
-              <div class="stat-bar">
-                <div class="stat-bar__label"><span>Inteligência</span><span>510 pts</span></div>
-                <div class="stat-bar__track"><div class="stat-bar__fill stat-bar--str" style="width:80%"></div></div>
-              </div>
-              <div class="stat-bar">
-                <div class="stat-bar__label"><span>Percepção</span><span>488 pts</span></div>
-                <div class="stat-bar__track"><div class="stat-bar__fill stat-bar--xp" style="width:76%"></div></div>
-              </div>
-              <div class="stat-bar">
-                <div class="stat-bar__label"><span>Vitalidade</span><span>392 pts</span></div>
-                <div class="stat-bar__track"><div class="stat-bar__fill stat-bar--hp" style="width:62%"></div></div>
+              <div class="fs-sm text-faint" style="text-align:center; padding:var(--sp-2) 0 var(--sp-3);">
+                🔒 Atributos detalhados (Força/Agilidade/etc.) ainda não implementados.
               </div>
               <hr class="divider">
               <div class="flex-between">
                 <span class="text-faint fs-xs uppercase">Pontos disponíveis</span>
-                <span class="font-display text-gold fs-sm">12</span>
+                <span class="font-display text-gold fs-sm" id="pf-attr-points">—</span>
               </div>
             </div>
           </div>
           <div class="panel panel--crimson">
             <div class="panel__hdr"><span>Histórico de Batalha</span><div class="panel__dot"></div></div>
             <div class="panel__body">
-              <div class="g2" style="gap:var(--sp-4); text-align:center;">
-                <div><div class="font-display text-crimson fs-lg">312</div><div class="fs-xs text-faint uppercase">Mortes de monstro</div></div>
-                <div><div class="font-display text-gold fs-lg">48</div><div class="fs-xs text-faint uppercase">Sombras</div></div>
-                <div><div class="font-display text-azure fs-lg">7</div><div class="fs-xs text-faint uppercase">Dungeons B+</div></div>
-                <div><div class="font-display text-violet fs-lg">0</div><div class="fs-xs text-faint uppercase">Mortes</div></div>
+              <div class="fs-sm text-faint" style="text-align:center; padding:var(--sp-3) 0;">
+                🔒 Nenhuma estatística de combate é registrada ainda.
               </div>
             </div>
           </div>
@@ -1316,8 +1414,8 @@ a{ color: var(--c-azure-core); text-decoration:none; }
       </div>
 
       <div class="page-footer">
-        <div class="page-footer__status"><div class="status-dot"></div>Perfil público</div>
-        <span>Criado em 01/01/2024</span>
+        <div class="page-footer__status"><div class="status-dot"></div><span id="pf-account-id">—</span></div>
+        <span id="pf-created-at">—</span>
       </div>
     </section>
 
@@ -1332,7 +1430,7 @@ a{ color: var(--c-azure-core); text-decoration:none; }
           <div class="page-sub">Itens disponíveis para compra com moedas do Sistema</div>
         </div>
         <div class="page-header__actions">
-          <span class="font-display text-gold">84.320 🪙</span>
+          <span class="font-display text-gold" id="shop-coins-display">— 🪙</span>
           <button class="btn btn--primary btn--sm">Minhas compras</button>
         </div>
       </div>
@@ -1430,7 +1528,7 @@ a{ color: var(--c-azure-core); text-decoration:none; }
         </div>
         <div class="page-header__actions">
           <button class="btn btn--skill btn--sm">Filtrar Rank</button>
-          <button class="btn btn--primary btn--sm">Entrar em Dungeon</button>
+          <button class="btn btn--primary btn--sm" onclick="window.SL_DungeonUI.enterBestAvailable()">Entrar em Dungeon</button>
         </div>
       </div>
 
@@ -1444,13 +1542,10 @@ a{ color: var(--c-azure-core); text-decoration:none; }
                 <div class="map-placeholder__label">[ MAPA DA REGIÃO ]<br><span style="font-size:0.7rem; opacity:.5;">renderização em desenvolvimento</span></div>
                 <!-- Nós do mapa -->
                 <div class="map-node map-node--safe" style="top:20%;left:15%;" title="Cidade de Seul"></div>
-                <div class="map-node" style="top:35%;left:28%;" title="Dungeon de Pedra"></div>
-                <div class="map-node" style="top:50%;left:40%;" title="Floresta Sombria"></div>
-                <div class="map-node map-node--boss" style="top:60%;left:55%;" title="Boss: Guardião"></div>
-                <div class="map-node" style="top:30%;left:60%;" title="Dungeon de Ferro"></div>
+                <div class="map-node" style="top:35%;left:28%;cursor:pointer;" data-dungeon="fenda-sussurro" title="Fenda do Sussurro Violeta (Rank E)" onclick="window.SL_DungeonUI.startDungeon('fenda-sussurro')"></div>
+                <div class="map-node" style="top:50%;left:40%;cursor:pointer;" data-dungeon="arco-martelo" title="Arco do Martelo Calmo (Rank D)" onclick="window.SL_DungeonUI.startDungeon('arco-martelo')"></div>
+                <div class="map-node map-node--boss" style="top:60%;left:55%;cursor:pointer;" data-dungeon="vazio-ancestral" title="Domínio do Vazio Ancestral (Rank C)" onclick="window.SL_DungeonUI.startDungeon('vazio-ancestral')"></div>
                 <div class="map-node map-node--safe" style="top:15%;left:72%;" title="Porto"></div>
-                <div class="map-node map-node--boss" style="top:75%;left:75%;" title="Boss: Monarca"></div>
-                <div class="map-node" style="top:45%;left:80%;" title="Torre do Sistema"></div>
                 <!-- Linhas de conexão (decorativas) -->
                 <div class="map-line" style="top:22%;left:16%;width:80px;transform:rotate(20deg);"></div>
                 <div class="map-line" style="top:38%;left:29%;width:90px;transform:rotate(14deg);"></div>
@@ -1469,47 +1564,8 @@ a{ color: var(--c-azure-core); text-decoration:none; }
         <div>
           <div class="panel">
             <div class="panel__hdr"><span>Dungeons Disponíveis</span><div class="panel__dot"></div></div>
-            <div class="panel__body" style="padding:0;">
-              <div class="mission-item">
-                <div class="mission-item__icon">🪨</div>
-                <div class="mission-item__info">
-                  <div class="mission-item__name">Dungeon de Pedra</div>
-                  <div class="mission-item__desc">Rank D · 3 andares</div>
-                </div>
-                <div class="rank-badge rank-badge--d">D</div>
-              </div>
-              <div class="mission-item">
-                <div class="mission-item__icon">🌲</div>
-                <div class="mission-item__info">
-                  <div class="mission-item__name">Floresta Sombria</div>
-                  <div class="mission-item__desc">Rank C · 5 andares</div>
-                </div>
-                <div class="rank-badge rank-badge--c">C</div>
-              </div>
-              <div class="mission-item">
-                <div class="mission-item__icon">🔩</div>
-                <div class="mission-item__info">
-                  <div class="mission-item__name">Dungeon de Ferro</div>
-                  <div class="mission-item__desc">Rank B · 7 andares · Em curso</div>
-                </div>
-                <div class="rank-badge rank-badge--b">B</div>
-              </div>
-              <div class="mission-item">
-                <div class="mission-item__icon">🗼</div>
-                <div class="mission-item__info">
-                  <div class="mission-item__name">Torre do Sistema</div>
-                  <div class="mission-item__desc">Rank A · 10 andares · Bloqueado</div>
-                </div>
-                <div class="rank-badge rank-badge--a">A</div>
-              </div>
-              <div class="mission-item" style="opacity:.4;">
-                <div class="mission-item__icon">👁️</div>
-                <div class="mission-item__info">
-                  <div class="mission-item__name">Dungeon do Monarca</div>
-                  <div class="mission-item__desc">Rank S · ??? andares · Bloqueado</div>
-                </div>
-                <div class="rank-badge rank-badge--s">S</div>
-              </div>
+            <div class="panel__body" style="padding:0;" id="mapa-dungeon-list">
+              <div class="fs-xs text-faint" style="padding:var(--sp-4);">Carregando dungeons...</div>
             </div>
           </div>
         </div>
@@ -1533,6 +1589,21 @@ a{ color: var(--c-azure-core); text-decoration:none; }
         </div>
         <div class="page-header__actions">
           <button class="btn btn--primary btn--sm">Receber Missão</button>
+        </div>
+      </div>
+
+      <div class="panel panel--gold" id="mission-real-panel" style="display:none;">
+        <div class="panel__hdr"><span id="mr-nome">—</span><div class="panel__dot"></div></div>
+        <div class="panel__body">
+          <p class="fs-sm text-dim mb4" id="mr-desc">—</p>
+          <div class="stat-bar">
+            <div class="stat-bar__label"><span>Progresso</span><span id="mr-progresso-label">—</span></div>
+            <div class="stat-bar__track"><div class="stat-bar__fill stat-bar--xp" id="mr-progresso-fill" style="width:0%"></div></div>
+          </div>
+          <div class="flex-between mt4">
+            <span class="fs-xs text-faint" id="mr-recompensa">—</span>
+            <button class="btn btn--primary btn--sm" id="mr-claim-btn" onclick="window.SL_MissoesView && window.SL_MissoesView.handleClaim()" style="display:none;">Receber Recompensa</button>
+          </div>
         </div>
       </div>
 
@@ -1737,18 +1808,34 @@ a{ color: var(--c-azure-core); text-decoration:none; }
          VIEW: ARENA
          ==================================================== -->
     <section class="view" id="view-arena">
-      <div class="page-header">
-        <div class="page-header__left">
-          <div class="page-eyebrow">Combate PvP</div>
-          <div class="page-title">Arena</div>
-          <div class="page-sub">Temporada 4 · Em andamento · 14 dias restantes</div>
-        </div>
-        <div class="page-header__actions">
-          <span class="font-display text-gold">Pontos: 1.840</span>
-          <span class="rank-badge rank-badge--a" style="margin:0 var(--sp-2);">A</span>
-          <button class="btn btn--danger btn--sm">Entrar em Combate</button>
-        </div>
-      </div>
+    <div class="page-header">
+  <div class="page-header__left">
+    <div class="page-eyebrow">Selecione o inimigo</div>
+    <div class="page-title">Arena</div>
+  </div>
+</div>
+<div class="g4">
+  <div class="arena-card" onclick="SL_CombatUI.startFight('goblin-feral')">
+    <div class="arena-card__icon">👺</div>
+    <div class="arena-card__name">Goblin Feroz</div>
+    <div class="arena-card__desc">Rank E · XP: 30 · Rápido e fraco</div>
+  </div>
+  <div class="arena-card" onclick="SL_CombatUI.startFight('lobo-sombra')">
+    <div class="arena-card__icon">🐺</div>
+    <div class="arena-card__name">Lobo das Sombras</div>
+    <div class="arena-card__desc">Rank E · XP: 45 · Drops raros</div>
+  </div>
+  <div class="arena-card" onclick="SL_CombatUI.startFight('guardiao-fenda')">
+    <div class="arena-card__icon">🗿</div>
+    <div class="arena-card__name">Guardião da Fenda</div>
+    <div class="arena-card__desc">Rank D · XP: 110 · Mais resistente</div>
+  </div>
+  <div class="arena-card" onclick="SL_CombatUI.startFight('boss-sentinela')" style="border-color:var(--c-crimson-core);">
+    <div class="arena-card__icon">💀</div>
+    <div class="arena-card__name">Sentinela das Sombras</div>
+    <div class="arena-card__desc">Rank C · BOSS · 3 fases · XP: 320</div>
+  </div>
+</div>
 
       <!-- Modos de jogo -->
       <div class="g3 mb5">
@@ -1842,7 +1929,7 @@ a{ color: var(--c-azure-core); text-decoration:none; }
               <div class="entity-card__tags"><span class="tag tag--violet">Treinamento</span><span class="tag tag--dim">Disponível</span></div>
             </div>
             <div class="entity-card__aside">
-              <button class="btn btn--primary btn--sm">Treinar</button>
+              <button class="btn btn--primary btn--sm" onclick="window.SL_NpcView && window.SL_NpcView.notImplemented('Treino de Força')">Treinar</button>
               <span class="fs-xs text-faint">500 🪙/sessão</span>
             </div>
           </div>
@@ -1854,7 +1941,7 @@ a{ color: var(--c-azure-core); text-decoration:none; }
               <div class="entity-card__tags"><span class="tag tag--azure">Treinamento</span><span class="tag tag--dim">Disponível</span></div>
             </div>
             <div class="entity-card__aside">
-              <button class="btn btn--skill btn--sm">Treinar</button>
+              <button class="btn btn--skill btn--sm" onclick="window.SL_NpcView && window.SL_NpcView.notImplemented('Treino de Agilidade')">Treinar</button>
               <span class="fs-xs text-faint">450 🪙/sessão</span>
             </div>
           </div>
@@ -1884,7 +1971,7 @@ a{ color: var(--c-azure-core); text-decoration:none; }
               <div class="entity-card__tags"><span class="tag tag--gold">Lojista</span><span class="tag tag--dim">Online</span></div>
             </div>
             <div class="entity-card__aside">
-              <button class="btn btn--legendary btn--sm">Visitar</button>
+              <button class="btn btn--legendary btn--sm" onclick="navigate('loja')">Visitar</button>
             </div>
           </div>
           <div class="entity-card">
@@ -1895,7 +1982,7 @@ a{ color: var(--c-azure-core); text-decoration:none; }
               <div class="entity-card__tags"><span class="tag tag--azure">Alquimia</span><span class="tag tag--dim">Online</span></div>
             </div>
             <div class="entity-card__aside">
-              <button class="btn btn--skill btn--sm">Visitar</button>
+              <button class="btn btn--skill btn--sm" onclick="navigate('loja')">Visitar</button>
             </div>
           </div>
         </div>
@@ -2257,12 +2344,25 @@ a{ color: var(--c-azure-core); text-decoration:none; }
   </div>
 </div>
 
+</div><!-- /#app-root -->
+
+<script src="./event-bus.js"></script>
+<script src="./game-flags.js"></script>
 <script src="./auth-player.js"></script>
+<script src="./perfil-view.js"></script>
+<script src="./home-view.js"></script>
 <script src="./inventory-etapa5.js"></script>
+<script src="./shop.js"></script>
+<script src="./dungeon.js"></script>
+<script src="./mission-manager.js"></script>
+<script src="./missoes-view.js"></script>
 <script src="./lore-etapa6.js"></script>
 <script src="./choice-etapa7.js"></script>
+<script src="./lore-panel-npcs.js"></script>
+<script src="./npc-view.js"></script>
 <script src="./eventos-etapa8.js"></script>
-<script src="./combat-etapa9.js"></script>
+<script src="./combata-engine.js"></script>
+<script src="./combate-ui.js"></script>
 <script src="./boss-etapa10.js"></script>
 <script src="./bridge-etapa11.js"></script>
 <script src="./effects-etapa11.js"></script>
@@ -2284,7 +2384,7 @@ a{ color: var(--c-azure-core); text-decoration:none; }
 
 
 const HOTBAR_PAGES = ['home','inventario','perfil','missoes','mapa','loja'];
-const ALL_PAGES = ['home','inventario','perfil','loja','mapa','missoes','guilda','arena','npcs','bestiario','ranking','config'];
+window.ALL_PAGES = ['home','inventario','perfil','loja','mapa','missoes','guilda','arena','npcs','bestiario','ranking','config','combate'];
 
 let currentPage = 'home';
 let moreOpen = false;
@@ -2390,6 +2490,8 @@ for (let i = 0; i < 22; i++) {
 document.querySelectorAll('.toggle').forEach(t => {
   t.addEventListener('click', () => t.classList.toggle('on'));
 });
+
+
 </script>
 </body>
 </html>

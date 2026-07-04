@@ -29,14 +29,42 @@
   }
 
   function saveState() {
-    localStorage.setItem(LS_KEY, JSON.stringify(App.auth.state));
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify(App.auth.state));
+    } catch (e) {
+      // Não deixa uma falha de storage (quota, modo privado, etc.) travar o
+      // fluxo de login/criação de personagem — o estado em memória continua
+      // funcionando nesta sessão mesmo sem persistir.
+      console.warn('Falha ao salvar estado de auth/player:', e);
+    }
   }
 
   // -------------------- Router helpers --------------------
+  // showView: usado apenas para as telas de auth (login/registro/recuperação/
+  // criação de personagem/loading). Garante que #auth-flow fique visível e
+  // #app-root (o jogo em si) fique escondido.
   function showView(viewId) {
-    document.querySelectorAll('.view').forEach((v) => v.classList.remove('active'));
+    const authFlow = document.getElementById('auth-flow');
+    const appRoot = document.getElementById('app-root');
+    if (appRoot) appRoot.classList.remove('active');
+    if (authFlow) authFlow.classList.add('active');
+
+    document.querySelectorAll('#auth-flow .view').forEach((v) => v.classList.remove('active'));
     const el = document.getElementById(viewId);
     if (el) el.classList.add('active');
+  }
+
+  // showApp: caminho inverso — esconde o fluxo de auth e mostra o jogo,
+  // sempre abrindo na Home.
+  function showApp() {
+    const authFlow = document.getElementById('auth-flow');
+    const appRoot = document.getElementById('app-root');
+    if (authFlow) authFlow.classList.remove('active');
+    if (appRoot) appRoot.classList.add('active');
+
+    document.querySelectorAll('#app-root .view').forEach((v) => v.classList.remove('active'));
+    const home = document.getElementById('view-home');
+    if (home) home.classList.add('active');
   }
 
   // -------------------- Toast --------------------
@@ -115,11 +143,15 @@
       // Wire navigation buttons (optional)
       const btnToRegister = document.getElementById('go-register');
       const btnToRecovery = document.getElementById('go-recovery');
-      const btnBackToLogin = document.getElementById('back-login');
 
       if (btnToRegister) btnToRegister.addEventListener('click', () => showView('view-register'));
       if (btnToRecovery) btnToRecovery.addEventListener('click', () => showView('view-recovery'));
-      if (btnBackToLogin) btnBackToLogin.addEventListener('click', () => showView('view-login'));
+
+      // "Voltar ao login" aparece em mais de uma tela (registro e recuperação),
+      // então amarra por classe em vez de um único #id.
+      document.querySelectorAll('.js-back-to-login').forEach((el) => {
+        el.addEventListener('click', () => showView('view-login'));
+      });
 
       // Character family quick buttons
       document.querySelectorAll('[data-character-family]').forEach((el) => {
@@ -259,58 +291,56 @@
     },
 
     gotoWelcome() {
-      showView('view-welcome');
+      showApp();
       this.renderPlayerHUD();
       toast('Bem-vindo ao Sistema.');
+    },
+
+    logout() {
+      // Mantém o personagem salvo (é um "slot" único local, não multi-conta
+      // de verdade) — só desloga e volta pra tela de login.
+      App.auth.state.loggedIn = false;
+      App.auth.state.accountId = null;
+      saveState();
+      showView('view-login');
+      toast('Você saiu do Sistema.');
     },
 
     renderPlayerHUD() {
       const ch = App.auth.state.character;
       if (!ch) return;
 
-      // Player system screen (Etapa 4)
-      setText('p-name', ch.name);
-      setText('p-classe', ch.clazzLabel);
-      setText('p-familia', ch.familyLabel);
-      setText('p-origem', ch.origin);
-      setText('p-nivel', ch.level);
-      setText('p-xp', ch.xp);
-      setText('p-mana', ch.mana);
-      setText('p-vida', ch.hp);
-      setText('p-energia', ch.energy);
-      setText('p-rank', ch.rank);
-      setText('p-titulo', ch.title);
-      setText('p-reputacao', ch.reputation);
-      setText('p-attr-points', ch.attributePoints);
-      setText('p-skill-points', ch.skillPoints);
-      setText('p-moedas', ch.coins);
-
-      // Optional header HUD integration (if ids exist)
+      // --- Header HUD (IDs que existem no HTML) ---
       setText('hud-name', ch.name);
       setText('hud-sub', 'Lv. ' + ch.level + ' · ' + ch.title);
-      setText('hud-rank', ch.rank);
 
-      // Bars (if exist)
-      setText('hud-hp-cur', ch.hp);
-      setText('hud-hp-max', ch.hpMax);
-      setText('hud-mp-cur', ch.mana);
-      setText('hud-mp-max', ch.manaMax);
-      setText('hud-xp-cur', ch.xp);
-      setText('hud-xp-max', ch.xpMax);
-
-      const hpPct = ch.hpMax ? (ch.hp / ch.hpMax) * 100 : 0;
+      const hpPct = ch.hpMax ? (ch.hp   / ch.hpMax)   * 100 : 0;
       const mpPct = ch.manaMax ? (ch.mana / ch.manaMax) * 100 : 0;
-      const xpPct = ch.xpMax ? (ch.xp / ch.xpMax) * 100 : 0;
-
+      const xpPct = ch.xpMax  ? (ch.xp   / ch.xpMax)  * 100 : 0;
       setProgressBarWidth('track-hp', 'hud-hp-fill', hpPct);
       setProgressBarWidth('track-mp', 'hud-mp-fill', mpPct);
       setProgressBarWidth('track-xp', 'hud-xp-fill', xpPct);
 
-      // Rank hex (if exists)
+      // Rank hex no header
       const rankHex = document.getElementById('rank-hex-hud');
       if (rankHex) {
         rankHex.textContent = ch.rank;
-        rankHex.className = 'rank-hex ' + rankToBadgeClass(ch.rank);
+        rankHex.className   = 'rank-hex ' + rankToBadgeClass(ch.rank);
+      }
+
+      // --- View de Perfil (IDs adicionados ao HTML) ---
+      setText('p-name',       ch.name.toUpperCase());
+      setText('p-sub',        ch.name + ' · ID #' + String(App.auth.state.accountId || '000001').slice(-6));
+      setText('p-titulo',     ch.title);
+      setText('p-rank-label', 'Rank ' + ch.rank);
+      setText('p-classe',     ch.clazzLabel || ch.clazz);
+      setText('p-attr-points', ch.attributePoints);
+
+      // Rank badge do perfil (letra + classe CSS)
+      const rankBadge = document.getElementById('p-rank');
+      if (rankBadge) {
+        rankBadge.textContent = ch.rank;
+        rankBadge.className   = 'rank-badge ' + rankToBadgeClass(ch.rank);
       }
     },
   };
@@ -362,6 +392,7 @@
   }
 
   function toInt(v, fallback) {
+    if (v === null || v === undefined || v === '') return fallback;
     const n = Number(v);
     if (!Number.isFinite(n)) return fallback;
     return Math.max(0, Math.floor(n));
@@ -424,9 +455,8 @@
 
   // -------------------- Auto-init --------------------
   document.addEventListener('DOMContentLoaded', function () {
-    if (document.getElementById('view-login') && document.getElementById('view-welcome')) {
+    if (document.getElementById('view-login') && document.getElementById('app-root')) {
       window.AuthPlayer.init();
     }
   });
 })();
-

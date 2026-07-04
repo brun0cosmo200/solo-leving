@@ -6,65 +6,33 @@
   // ============================================================
   const ENEMIES = {
     'lobo-sombra': {
-      id: 'lobo-sombra',
-      nome: 'Lobo das Sombras',
-      icon: '🐺',
-      rank: 'E',
-      hp: 160,
-      attackDamage: 10,
-      attackIntervalMs: 3000,
-      element: 'sombra',
-      xpReward: 45,
-      coinReward: 80,
+      id: 'lobo-sombra', nome: 'Lobo das Sombras', icon: '🐺', rank: 'E',
+      hp: 160, attackDamage: 10, attackIntervalMs: 3000, element: 'sombra',
+      xpReward: 45, coinReward: 80,
       dropTable: [
         { nome: 'Garras Corrompidas', chance: 0.40 },
         { nome: 'Essência de Sombra',  chance: 0.18 },
       ],
     },
     'goblin-feral': {
-      id: 'goblin-feral',
-      nome: 'Goblin Feroz',
-      icon: '👺',
-      rank: 'E',
-      hp: 110,
-      attackDamage: 8,
-      attackIntervalMs: 2400,
-      element: 'fogo',
-      xpReward: 30,
-      coinReward: 50,
-      dropTable: [
-        { nome: 'Faca Enferrujada', chance: 0.35 },
-      ],
+      id: 'goblin-feral', nome: 'Goblin Feroz', icon: '👺', rank: 'E',
+      hp: 110, attackDamage: 8, attackIntervalMs: 2400, element: 'fogo',
+      xpReward: 30, coinReward: 50,
+      dropTable: [{ nome: 'Faca Enferrujada', chance: 0.35 }],
     },
     'guardiao-fenda': {
-      id: 'guardiao-fenda',
-      nome: 'Guardião da Fenda',
-      icon: '🗿',
-      rank: 'D',
-      hp: 380,
-      attackDamage: 18,
-      attackIntervalMs: 2800,
-      element: 'eletricidade',
-      xpReward: 110,
-      coinReward: 190,
+      id: 'guardiao-fenda', nome: 'Guardião da Fenda', icon: '🗿', rank: 'D',
+      hp: 380, attackDamage: 18, attackIntervalMs: 2800, element: 'eletricidade',
+      xpReward: 110, coinReward: 190,
       dropTable: [
         { nome: 'Núcleo de Pedra Sombria', chance: 0.30 },
         { nome: 'Cristal de Fenda',        chance: 0.12 },
       ],
     },
     'boss-sentinela': {
-      id: 'boss-sentinela',
-      nome: 'Sentinela das Sombras',
-      icon: '💀',
-      rank: 'C',
-      hp: 1000,
-      attackDamage: 26,
-      attackIntervalMs: 2200,
-      element: 'sombra',
-      xpReward: 320,
-      coinReward: 500,
-      isBoss: true,
-      bossId: 'boss-shadow-warden',
+      id: 'boss-sentinela', nome: 'Sentinela das Sombras', icon: '💀', rank: 'C',
+      hp: 1000, attackDamage: 26, attackIntervalMs: 2200, element: 'sombra',
+      xpReward: 320, coinReward: 500, isBoss: true, bossId: 'boss-shadow-warden',
       dropTable: [
         { nome: 'Fragmento de Relíquia', chance: 0.45 },
         { nome: 'Selo da Sentinela',     chance: 0.25 },
@@ -72,6 +40,13 @@
       ],
     },
   };
+
+  // ============================================================
+  // CALLBACKS DE DUNGEON
+  // ============================================================
+  let _onVictory      = null; // (rewards) => void
+  let _onDefeat       = null; // () => void
+  let _dungeonContext = null; // { dungeonNome, roomLabel, roomNum, totalRooms, isBoss }
 
   // ============================================================
   // ESTADO INTERNO
@@ -85,19 +60,26 @@
     attackInterval: null,
     qteStart: 0,
     qteTimeout: null,
-    qteVisualMs: 1400, // janela visual total (ms)
-    // mapeamos visualmente 0..1400ms → engine 0..240ms
+    qteVisualMs: 1400,
   };
 
   // ============================================================
-  // DOM
+  // DOM / UTIL
   // ============================================================
   function el(id)        { return document.getElementById(id); }
   function setText(id,v) { const e = el(id); if (e) e.textContent = String(v); }
-  function setPct(id,p)  { const e = el(id); if (e) e.style.width = Math.max(0, Math.min(100, p)) + '%'; }
+  function setPct(id,p)  { const e = el(id); if (e) e.style.width = Math.max(0,Math.min(100,p))+'%'; }
+  function fx()          { return window.SL_EffectsEtapa11 || null; }
+  function c9()          { return window.SL_CombatEtapa9   || null; }
 
-  function fx() { return window.SL_EffectsEtapa11 || null; }
-  function c9() { return window.SL_CombatEtapa9   || null; }
+  function toast(msg) {
+    const c = el('toasts'); if (!c) return;
+    const t = document.createElement('div');
+    t.className = 'toast'; t.textContent = msg;
+    c.appendChild(t);
+    requestAnimationFrame(() => t.classList.add('show'));
+    setTimeout(() => { t.classList.remove('show'); setTimeout(()=>t.remove(),260); }, 1800);
+  }
 
   // ============================================================
   // INJEÇÃO DE HTML
@@ -105,9 +87,23 @@
   function inject() {
     if (el('view-combate')) return;
 
-    const html = /* html */`
+    const html = `
 <section class="view" id="view-combate">
-<div style="max-width:660px; margin:0 auto; padding-bottom:var(--sp-8);">
+<div style="max-width:660px;margin:0 auto;padding-bottom:var(--sp-8);">
+
+  <!-- Contexto de dungeon (oculto fora de dungeon) -->
+  <div id="ci-dungeon-ctx" style="display:none;margin-bottom:var(--sp-3);">
+    <div style="
+      background:rgba(179,65,255,.10);border:1px solid rgba(179,65,255,.25);
+      padding:var(--sp-2) var(--sp-4);display:flex;align-items:center;justify-content:space-between;
+      font-family:var(--font-heading);font-size:var(--fs-xs);
+    ">
+      <span id="ci-ctx-dungeon" style="color:var(--c-violet-core);"></span>
+      <span id="ci-ctx-room"    style="color:var(--c-text-faint);"></span>
+    </div>
+    <!-- Dots de sala -->
+    <div id="ci-ctx-dots" style="display:flex;gap:6px;padding:var(--sp-2) var(--sp-4) 0;"></div>
+  </div>
 
   <!-- Painel do inimigo -->
   <div class="panel panel--crimson mb4">
@@ -119,12 +115,10 @@
       </div>
     </div>
     <div class="panel__body">
-      <!-- Avatar -->
       <div style="text-align:center;font-size:5rem;margin-bottom:var(--sp-3);position:relative;">
         <span id="ci-enemy-icon">💀</span>
         <div id="ci-hit-flash" style="position:absolute;inset:0;border-radius:50%;background:rgba(255,43,78,0);transition:background 80ms;pointer-events:none;"></div>
       </div>
-      <!-- HP inimigo -->
       <div class="stat-bar mb4">
         <div class="stat-bar__label">
           <span class="text-faint fs-xs uppercase">Vida</span>
@@ -134,7 +128,6 @@
           <div class="stat-bar__fill stat-bar--hp" id="ci-enemy-hp-fill" style="width:100%;transition:width 200ms ease-out;"></div>
         </div>
       </div>
-      <!-- Log -->
       <div id="ci-log" style="
         height:80px;overflow:hidden;display:flex;flex-direction:column-reverse;gap:2px;
         font-family:var(--font-heading);font-size:var(--fs-xs);color:var(--c-text-faint);
@@ -144,7 +137,7 @@
     </div>
   </div>
 
-  <!-- QTE — aviso de ataque -->
+  <!-- QTE -->
   <div id="ci-qte" style="display:none;margin-bottom:var(--sp-4);">
     <div style="
       background:rgba(255,43,78,.14);border:1px solid var(--c-crimson-core);
@@ -152,12 +145,8 @@
     ">
       <span style="font-family:var(--font-heading);font-size:var(--fs-sm);color:var(--c-crimson-core);white-space:nowrap;">⚠️ ATAQUE!</span>
       <div style="flex:1;height:10px;background:rgba(255,255,255,.06);position:relative;overflow:hidden;">
-        <!-- zona "perfeito" (primeiros ~28% do bar visual ≈ 70ms engine) -->
         <div style="position:absolute;top:0;left:0;width:28%;height:100%;background:rgba(47,216,255,.30);"></div>
-        <div id="ci-qte-bar" style="
-          position:absolute;top:0;right:0;height:100%;width:100%;
-          background:linear-gradient(90deg,var(--c-gold-core),var(--c-crimson-core));
-        "></div>
+        <div id="ci-qte-bar" style="position:absolute;top:0;right:0;height:100%;width:100%;background:linear-gradient(90deg,var(--c-gold-core),var(--c-crimson-core));"></div>
       </div>
       <span style="font-family:var(--font-heading);font-size:var(--fs-xs);color:var(--c-text-faint);white-space:nowrap;">Esquiva / Parry</span>
     </div>
@@ -171,73 +160,67 @@
           <span class="text-faint fs-xs">HP</span>
           <span id="ci-player-hp-txt" class="font-display fs-xs text-crimson">—</span>
         </div>
-        <div class="stat-bar__track">
-          <div class="stat-bar__fill stat-bar--hp" id="ci-player-hp-fill" style="width:100%;transition:width 200ms ease-out;"></div>
-        </div>
+        <div class="stat-bar__track"><div class="stat-bar__fill stat-bar--hp" id="ci-player-hp-fill" style="width:100%;transition:width 200ms ease-out;"></div></div>
       </div>
       <div class="stat-bar mb2">
         <div class="stat-bar__label">
           <span class="text-faint fs-xs">MP</span>
           <span id="ci-player-mp-txt" class="font-display fs-xs text-azure">—</span>
         </div>
-        <div class="stat-bar__track">
-          <div class="stat-bar__fill stat-bar--mp" id="ci-player-mp-fill" style="width:100%;transition:width 200ms ease-out;"></div>
-        </div>
+        <div class="stat-bar__track"><div class="stat-bar__fill stat-bar--mp" id="ci-player-mp-fill" style="width:100%;transition:width 200ms ease-out;"></div></div>
       </div>
       <div class="stat-bar">
         <div class="stat-bar__label">
           <span class="text-faint fs-xs">Stamina</span>
           <span id="ci-player-st-txt" class="font-display fs-xs text-gold">—</span>
         </div>
-        <div class="stat-bar__track">
-          <div class="stat-bar__fill" id="ci-player-st-fill" style="width:100%;background:linear-gradient(90deg,var(--c-gold-deep),var(--c-gold-core));transition:width 200ms ease-out;"></div>
-        </div>
+        <div class="stat-bar__track"><div class="stat-bar__fill" id="ci-player-st-fill" style="width:100%;background:linear-gradient(90deg,var(--c-gold-deep),var(--c-gold-core));transition:width 200ms ease-out;"></div></div>
       </div>
     </div>
   </div>
 
-  <!-- Botões de ação -->
+  <!-- Ações -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-3);margin-bottom:var(--sp-3);">
-    <button class="btn btn--primary" id="ci-btn-quick" onclick="SL_CombatUI.doQuickAttack()">
-      ⚡ Ataque Rápido
-      <br><span style="font-size:.65rem;opacity:.55;">4 Stamina · Combo</span>
+    <button class="btn btn--primary" id="ci-btn-quick"   onclick="SL_CombatUI.doQuickAttack()">
+      ⚡ Ataque Rápido<br><span style="font-size:.65rem;opacity:.55;">4 Stamina · Combo</span>
     </button>
-    <button class="btn btn--skill" id="ci-btn-charged" onclick="SL_CombatUI.doChargedAttack()">
-      💥 Carregado
-      <br><span style="font-size:.65rem;opacity:.55;">12 Stamina · Dano maior</span>
+    <button class="btn btn--skill"   id="ci-btn-charged" onclick="SL_CombatUI.doChargedAttack()">
+      💥 Carregado<br><span style="font-size:.65rem;opacity:.55;">12 Stamina · Dano maior</span>
     </button>
   </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-3);margin-bottom:var(--sp-5);">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-3);margin-bottom:var(--sp-3);">
     <button class="btn" id="ci-btn-dodge" onclick="SL_CombatUI.doDefense('dodge')"
       style="border-color:var(--c-azure-core);color:var(--c-azure-core);">
-      🌀 Esquivar
-      <br><span style="font-size:.65rem;opacity:.55;">Clique no ataque!</span>
+      🌀 Esquivar<br><span style="font-size:.65rem;opacity:.55;">Zona azul = perfeito</span>
     </button>
     <button class="btn" id="ci-btn-parry" onclick="SL_CombatUI.doDefense('parry')"
       style="border-color:var(--c-gold-core);color:var(--c-gold-core);">
-      🛡️ Parry
-      <br><span style="font-size:.65rem;opacity:.55;">Zona azul = perfeito</span>
+      🛡️ Parry<br><span style="font-size:.65rem;opacity:.55;">Clique no ataque!</span>
     </button>
   </div>
+
+  <!-- Consumíveis -->
+  <div id="ci-consumables-row" style="display:none;margin-bottom:var(--sp-3);">
+    <div style="font-family:var(--font-heading);font-size:var(--fs-xs);color:var(--c-text-faint);margin-bottom:var(--sp-2);">Itens</div>
+    <div id="ci-consumables" style="display:flex;gap:var(--sp-2);flex-wrap:wrap;"></div>
+  </div>
+
   <div style="text-align:center;">
     <button class="btn btn--danger btn--sm" onclick="SL_CombatUI.flee()">Fugir da batalha</button>
   </div>
 
-</div><!-- /wrapper -->
+</div>
 
-<!-- Overlay de resultado -->
+<!-- Overlay de resultado (só aparece fora de dungeon) -->
 <div id="ci-result" style="
   display:none;position:fixed;inset:0;z-index:500;
   background:rgba(6,5,10,.93);backdrop-filter:blur(8px);
   flex-direction:column;align-items:center;justify-content:center;
   gap:var(--sp-5);text-align:center;padding:var(--sp-6);
 ">
-  <div id="ci-result-icon" style="font-size:5rem;"></div>
+  <div id="ci-result-icon"  style="font-size:5rem;"></div>
   <div id="ci-result-title" style="font-family:var(--font-display);font-size:var(--fs-xl);letter-spacing:.06em;"></div>
-  <div id="ci-result-body" style="
-    font-family:var(--font-heading);font-size:var(--fs-sm);
-    color:var(--c-text-dim);max-width:340px;line-height:1.9;white-space:pre-line;
-  "></div>
+  <div id="ci-result-body"  style="font-family:var(--font-heading);font-size:var(--fs-sm);color:var(--c-text-dim);max-width:340px;line-height:1.9;white-space:pre-line;"></div>
   <button class="btn btn--primary" onclick="SL_CombatUI.closeResult()">Continuar</button>
 </div>
 </section>`;
@@ -250,8 +233,7 @@
   // LOG
   // ============================================================
   function log(msg, color) {
-    const box = el('ci-log');
-    if (!box) return;
+    const box = el('ci-log'); if (!box) return;
     const line = document.createElement('div');
     line.style.color = color || 'var(--c-text-faint)';
     line.textContent = msg;
@@ -260,17 +242,16 @@
   }
 
   // ============================================================
-  // HUD UPDATE
+  // HUD
   // ============================================================
   function refreshPlayerHUD() {
-    const s = c9() && c9().state;
-    if (!s) return;
-    const hpPct = s.maxHp    ? (s.hp      / s.maxHp)      * 100 : 0;
-    const mpPct = s.maxMp    ? (s.mp      / s.maxMp)      * 100 : 0;
+    const s = c9() && c9().state; if (!s) return;
+    const hpPct = s.maxHp      ? (s.hp      / s.maxHp)      * 100 : 0;
+    const mpPct = s.maxMp      ? (s.mp      / s.maxMp)      * 100 : 0;
     const stPct = s.maxStamina ? (s.stamina / s.maxStamina) * 100 : 0;
-    setText('ci-player-hp-txt', `${Math.max(0, s.hp)} / ${s.maxHp}`);
-    setText('ci-player-mp-txt', `${Math.max(0, s.mp)} / ${s.maxMp}`);
-    setText('ci-player-st-txt', `${Math.round(Math.max(0, s.stamina))} / ${s.maxStamina}`);
+    setText('ci-player-hp-txt', `${Math.max(0,s.hp)} / ${s.maxHp}`);
+    setText('ci-player-mp-txt', `${Math.max(0,s.mp)} / ${s.maxMp}`);
+    setText('ci-player-st-txt', `${Math.round(Math.max(0,s.stamina))} / ${s.maxStamina}`);
     setPct('ci-player-hp-fill', hpPct);
     setPct('ci-player-mp-fill', mpPct);
     setPct('ci-player-st-fill', stPct);
@@ -278,13 +259,59 @@
 
   function refreshEnemyHUD() {
     const pct = combat.enemyMaxHp ? (combat.enemyHp / combat.enemyMaxHp) * 100 : 0;
-    setText('ci-enemy-hp-txt', `${Math.max(0, combat.enemyHp)} / ${combat.enemyMaxHp}`);
+    setText('ci-enemy-hp-txt', `${Math.max(0,combat.enemyHp)} / ${combat.enemyMaxHp}`);
     setPct('ci-enemy-hp-fill', pct);
   }
 
+  function refreshDungeonCtx() {
+    const ctx     = _dungeonContext;
+    const ctxEl   = el('ci-dungeon-ctx');
+    if (!ctxEl) return;
+
+    if (!ctx) { ctxEl.style.display = 'none'; return; }
+
+    ctxEl.style.display = 'block';
+    setText('ci-ctx-dungeon', ctx.dungeonNome);
+    setText('ci-ctx-room',    `Sala ${ctx.roomNum} / ${ctx.totalRooms}`);
+
+    const dots = el('ci-ctx-dots');
+    if (dots) {
+      dots.innerHTML = Array.from({ length: ctx.totalRooms }, (_, i) => {
+        const done    = i < ctx.roomNum - 1;
+        const current = i === ctx.roomNum - 1;
+        return `<div style="
+          width:26px;height:5px;border-radius:3px;
+          background:${done ? 'var(--c-gold-core)' : current ? 'var(--c-violet-core)' : 'rgba(255,255,255,.10)'};
+        "></div>`;
+      }).join('');
+    }
+  }
+
+  function refreshConsumables() {
+    const row  = el('ci-consumables-row');
+    const box  = el('ci-consumables');
+    if (!box || !row) return;
+
+    const shop = window.SL_ShopUI;
+    if (!shop) { row.style.display = 'none'; return; }
+
+    const inv = shop.loadConsumables();
+    const items = shop.SHOP_ITEMS.filter(i => (inv[i.id] || 0) > 0);
+
+    if (!items.length) { row.style.display = 'none'; return; }
+
+    row.style.display = 'block';
+    box.innerHTML = items.map(item => `
+      <button class="btn btn--sm" onclick="SL_CombatUI.useConsumable('${item.id}')"
+        style="font-family:var(--font-heading);font-size:var(--fs-xs);gap:4px;">
+        ${item.icon} ${item.nome}
+        <span style="opacity:.5;">(${inv[item.id]})</span>
+      </button>
+    `).join('');
+  }
+
   function flashEnemyHit() {
-    const f = el('ci-hit-flash');
-    if (!f) return;
+    const f = el('ci-hit-flash'); if (!f) return;
     f.style.background = 'rgba(255,43,78,.55)';
     setTimeout(() => { f.style.background = 'rgba(255,43,78,0)'; }, 110);
   }
@@ -298,8 +325,7 @@
     clearInterval(_staminaRegen);
     _staminaRegen = setInterval(() => {
       if (!combat.active) { clearInterval(_staminaRegen); return; }
-      const s = c9() && c9().state;
-      if (!s) return;
+      const s = c9() && c9().state; if (!s) return;
       if (s.stamina < s.maxStamina) {
         s.stamina = Math.min(s.maxStamina, s.stamina + 8);
         refreshPlayerHUD();
@@ -310,28 +336,20 @@
   // ============================================================
   // QTE
   // ============================================================
-  let _qteAnimReq = null;
-
   function showQTE() {
     combat.incomingAttack = true;
     combat.qteStart       = Date.now();
-
     const qteEl = el('ci-qte');
     const bar   = el('ci-qte-bar');
     if (qteEl) qteEl.style.display = 'block';
-
-    // Anima a barra encolhendo da direita
     if (bar) {
-      const ms = combat.qteVisualMs;
       bar.style.transition = 'none';
       bar.style.width = '100%';
       requestAnimationFrame(() => {
-        bar.style.transition = `width ${ms}ms linear`;
+        bar.style.transition = `width ${combat.qteVisualMs}ms linear`;
         bar.style.width = '0%';
       });
     }
-
-    // Auto-dano se o jogador não agir
     combat.qteTimeout = setTimeout(() => {
       if (combat.incomingAttack) resolveIncoming(null);
     }, combat.qteVisualMs);
@@ -344,7 +362,6 @@
     if (combat.qteTimeout) { clearTimeout(combat.qteTimeout); combat.qteTimeout = null; }
   }
 
-  // deltaMs visual → escala para o engine (0..240ms)
   function scaleQteDelta(elapsed) {
     return Math.round((elapsed / combat.qteVisualMs) * 240);
   }
@@ -358,38 +375,29 @@
     const bridge = window.SL_BridgeEtapa11;
 
     if (defenseType) {
-      const elapsed   = Date.now() - combat.qteStart;
+      const elapsed     = Date.now() - combat.qteStart;
       const engineDelta = scaleQteDelta(elapsed);
-      const result    = engine.resolveDefense({ type: defenseType, qteDeltaMs: engineDelta });
-
+      const result      = engine.resolveDefense({ type: defenseType, qteDeltaMs: engineDelta });
       if (bridge) bridge.observeDefenseResult(result);
 
       if (result.result === 'perfect-dodge' || result.result === 'perfect-block') {
         log(`✨ ${result.result === 'perfect-dodge' ? 'Esquiva Perfeita' : 'Parry Perfeito'}! Sem dano.`, 'var(--c-azure-core)');
-        if (fx()) fx().lightning({ x: 50, y: 50 });
+        if (fx()) fx().lightning({ x:50, y:50 });
         return;
       }
       if (result.result === 'dodge' || result.result === 'parry') {
         const reduced = Math.round(enemy.attackDamage * 0.35);
         engine.applyDamage({ amount: reduced, element: enemy.element, source: 'boss' });
         log(`🛡️ ${defenseType === 'dodge' ? 'Esquiva' : 'Parry'} — dano reduzido: ${reduced}`, 'var(--c-gold-core)');
-        if (fx()) fx().smoke({ x: 50, y: 50 });
-        refreshPlayerHUD();
-        checkPlayerDead();
-        return;
+        if (fx()) fx().smoke({ x:50, y:50 });
+        refreshPlayerHUD(); checkPlayerDead(); return;
       }
-      // clicou mas passou da janela — cai no dano total
     }
 
-    // Dano total
     engine.applyDamage({ amount: enemy.attackDamage, element: enemy.element, source: 'boss' });
     log(`💢 ${enemy.nome} causou ${enemy.attackDamage} de dano!`, 'var(--c-crimson-core)');
-    if (fx()) {
-      fx().blood({ x: 50, y: 60 });
-      fx().cameraImpactShake({ intensity: 0.8, duration: 140 });
-    }
-    refreshPlayerHUD();
-    checkPlayerDead();
+    if (fx()) { fx().blood({ x:50, y:60 }); fx().cameraImpactShake({ intensity:.8, duration:140 }); }
+    refreshPlayerHUD(); checkPlayerDead();
   }
 
   function checkPlayerDead() {
@@ -403,11 +411,9 @@
   function grantRewards(enemy) {
     const LS = 'sl_auth_state_v1';
     try {
-      const raw  = localStorage.getItem(LS);
-      if (!raw) return {};
+      const raw  = localStorage.getItem(LS); if (!raw) return {};
       const auth = JSON.parse(raw);
-      const ch   = auth.character;
-      if (!ch) return {};
+      const ch   = auth.character;        if (!ch) return {};
 
       ch.xp    = (ch.xp    || 0) + enemy.xpReward;
       ch.coins = (ch.coins || 0) + enemy.coinReward;
@@ -417,31 +423,24 @@
         ch.xp   -= ch.xpMax;
         ch.level = (ch.level || 1) + 1;
         ch.xpMax = Math.floor(100 + Math.pow(ch.level, 1.45) * 25);
-        // Buff leve nas stats a cada level
         ch.hpMax   = Math.round((ch.hpMax   || 120) * 1.08);
         ch.hp      = ch.hpMax;
         ch.manaMax = Math.round((ch.manaMax  || 100) * 1.06);
         ch.mana    = ch.manaMax;
         leveled    = true;
       }
-
       const lv = ch.level || 1;
-      ch.rank  = lv >= 100 ? 'S' : lv >= 80 ? 'A' : lv >= 60 ? 'B' : lv >= 40 ? 'C' : lv >= 20 ? 'D' : 'E';
+      ch.rank  = lv>=100?'S':lv>=80?'A':lv>=60?'B':lv>=40?'C':lv>=20?'D':'E';
 
       localStorage.setItem(LS, JSON.stringify(auth));
       if (window.AuthPlayer) window.AuthPlayer.renderPlayerHUD();
 
       return { xp: enemy.xpReward, coins: enemy.coinReward, leveled, level: ch.level, rank: ch.rank };
-    } catch (e) {
-      console.warn('grantRewards error', e);
-      return {};
-    }
+    } catch (e) { console.warn('[CombatUI] grantRewards', e); return {}; }
   }
 
   function rollDrops(enemy) {
-    return (enemy.dropTable || [])
-      .filter(d => Math.random() < d.chance)
-      .map(d => d.nome);
+    return (enemy.dropTable || []).filter(d => Math.random() < d.chance).map(d => d.nome);
   }
 
   function getPlayerLevel() {
@@ -461,89 +460,77 @@
 
     inject();
 
-    // Reseta estado do engine com HP real do personagem
+    // Reseta engine com HP real do personagem
     const engine = c9();
     if (engine) {
       try {
         const raw = localStorage.getItem('sl_auth_state_v1');
         const ch  = raw && JSON.parse(raw).character;
-        engine.state.hp        = ch ? ch.hpMax   : 120;
-        engine.state.maxHp     = engine.state.hp;
-        engine.state.mp        = ch ? ch.manaMax  : 100;
-        engine.state.maxMp     = engine.state.mp;
-        engine.state.stamina   = 100;
+        engine.state.hp         = ch ? ch.hpMax  : 120;
+        engine.state.maxHp      = engine.state.hp;
+        engine.state.mp         = ch ? ch.manaMax : 100;
+        engine.state.maxMp      = engine.state.mp;
+        engine.state.stamina    = 100;
         engine.state.maxStamina = 100;
-      } catch { /* mantém defaults */ }
+      } catch {}
 
-      // Conecta VFX ao engine
       if (fx()) {
         engine.setEffects({
-          screenShake:       (p) => fx().cameraImpactShake(p),
-          spawnParticles:    (p) => fx().explosion({ x: 50, y: 30, ...p }),
-          slowMotion:        ()  => {},
-          playSfx:           ()  => {},
-          changeCameraImpact:()  => {},
-          cinematicCut:      ()  => {},
+          screenShake:        (p) => fx().cameraImpactShake(p),
+          spawnParticles:     (p) => fx().explosion({ x:50, y:30, ...p }),
+          slowMotion:         ()  => {},
+          playSfx:            ()  => {},
+          changeCameraImpact: ()  => {},
+          cinematicCut:       ()  => {},
         });
       }
     }
 
-    // Inicializa estado do boss se for boss
     if (enemy.isBoss && window.SL_BossEtapa10) {
       window.SL_BossEtapa10.setBoss(enemy.bossId, { hp: enemy.hp });
       window.SL_BossEtapa10.setCallbacks({
-        onCutscene: ({ text }) => log(`📖 ${text}`, 'var(--c-violet-core)'),
+        onCutscene:    ({ text }) => log(`📖 ${text}`, 'var(--c-violet-core)'),
         onMusicChange: () => {},
-        onDrop: (d) => log(`🎁 Drop: ${d.nome}`, 'var(--c-gold-core)'),
+        onDrop:        (d)  => log(`🎁 Drop: ${d.nome}`, 'var(--c-gold-core)'),
       });
     }
 
-    // Estado de combate
-    combat.active      = true;
-    combat.enemy       = enemy;
-    combat.enemyHp     = enemy.hp;
-    combat.enemyMaxHp  = enemy.hp;
+    combat.active         = true;
+    combat.enemy          = enemy;
+    combat.enemyHp        = enemy.hp;
+    combat.enemyMaxHp     = enemy.hp;
     combat.incomingAttack = false;
 
-    // Limpa timers anteriores
     clearInterval(combat.attackInterval);
     if (combat.qteTimeout) clearTimeout(combat.qteTimeout);
 
-    // Atualiza UI
     setText('ci-enemy-name', enemy.nome);
     setText('ci-enemy-icon', enemy.icon);
     const badge = el('ci-phase-badge');
-    if (badge) {
-      badge.textContent  = 'Rank ' + enemy.rank;
-      badge.style.display = 'inline-block';
-    }
-    el('ci-log') && (el('ci-log').innerHTML = '');
+    if (badge) { badge.textContent = 'Rank ' + enemy.rank; badge.style.display = 'inline-block'; }
+
+    el('ci-log')    && (el('ci-log').innerHTML    = '');
     el('ci-result') && (el('ci-result').style.display = 'none');
 
     refreshEnemyHUD();
     refreshPlayerHUD();
+    refreshDungeonCtx();
+    refreshConsumables();
     startStaminaRegen();
 
-    log(`⚔️ Batalha iniciada — ${enemy.nome} aparece!`, 'var(--c-text-dim)');
+    log(`⚔️ ${enemy.nome} aparece!`, 'var(--c-text-dim)');
 
-    // Loop de ataque do inimigo
     combat.attackInterval = setInterval(() => {
       if (!combat.active || combat.incomingAttack) return;
-
-      // Boss usa habilidade antes de atacar
       if (enemy.isBoss && window.SL_BossEtapa10) {
         const act = window.SL_BossEtapa10.bossAct();
         if (act.ok) log(`👁️ Boss usa: ${act.attackName}`, 'var(--c-text-faint)');
       }
-
       showQTE();
       log(`⚠️ ${enemy.nome} está atacando — reaja!`, 'var(--c-crimson-core)');
     }, enemy.attackIntervalMs);
 
-    // Registra 'combate' nas páginas e navega
-    if (window.ALL_PAGES && !window.ALL_PAGES.includes('combate')) {
-      window.ALL_PAGES.push('combate');
-    }
+    if (window.ALL_PAGES && !window.ALL_PAGES.includes('combate')) window.ALL_PAGES.push('combate');
     if (typeof window.navigate === 'function') window.navigate('combate');
   }
 
@@ -553,62 +540,62 @@
     clearInterval(_staminaRegen);
     hideQTE();
 
-    const overlay = el('ci-result');
-    if (!overlay) return;
-    overlay.style.display = 'flex';
-
     if (victory) {
       const rewards = grantRewards(combat.enemy);
       const drops   = rollDrops(combat.enemy);
 
+      if (window.SL_EventBus) {
+        window.SL_EventBus.emit('enemy:defeated', { id: combat.enemy.id, rank: combat.enemy.rank });
+      }
+
+      // Se estiver em modo dungeon, passa controle pra dungeon
+      if (typeof _onVictory === 'function') {
+        _onVictory({ ...rewards, drops });
+        return;
+      }
+
+      // Fora de dungeon: mostra overlay normal
+      const overlay = el('ci-result');
+      if (!overlay) return;
+      overlay.style.display = 'flex';
       el('ci-result-icon').textContent  = '🏆';
       setText('ci-result-title', 'VITÓRIA');
       el('ci-result-title').style.color = 'var(--c-gold-core)';
-
-      let body = `+${rewards.xp} XP  ·  +${rewards.coins} Moedas`;
-      if (drops.length) body += `\n🎁 Drops: ${drops.join(', ')}`;
+      let body = `+${rewards.xp} XP  ·  +${rewards.coins} 🪙`;
+      if (drops.length) body += `\n🎁 ${drops.join(', ')}`;
       if (rewards.leveled) body += `\n\n🆙 LEVEL UP! → Lv. ${rewards.level}  [${rewards.rank}]`;
       setText('ci-result-body', body);
+      if (fx()) { fx().explosion({ x:50, y:40 }); fx().brilho({ x:50, y:40 }); }
 
-      // Adiciona drops ao inventário real
-      const inv = window.SL_InventoryEtapa5;
-      if (inv && inv.addItem) {
-        drops.forEach(nome => inv.addItem({ name: nome, rarity: 'Comum', type: 'Material', category: 'Material',
-          description: 'Drop de combate.', origin: combat.enemy.nome, seed: 'combat_' + nome, price: 0,
-          weightKg: 0.2, durability: 100, minLevel: 1, history: 'Obtido em combate.', visualEffect: 'Brilho residual.' }));
-      }
-
-      // Notifica dungeon.js se houver sessão de dungeon ativa
-      if (typeof window.SL_DungeonCombatCallback === 'function') {
-        const cb = window.SL_DungeonCombatCallback;
-        window.SL_DungeonCombatCallback = null;
-        setTimeout(() => cb({ won: true }), 1800); // delay pra player ler resultado
-      }
-
-      if (fx()) { fx().explosion({ x: 50, y: 40 }); fx().brilho({ x: 50, y: 40 }); }
     } else {
+      if (typeof _onDefeat === 'function') {
+        _onDefeat();
+        return;
+      }
+      const overlay = el('ci-result');
+      if (!overlay) return;
+      overlay.style.display = 'flex';
       el('ci-result-icon').textContent  = '💀';
       setText('ci-result-title', 'DERROTA');
       el('ci-result-title').style.color = 'var(--c-crimson-core)';
-      setText('ci-result-body', 'Você foi derrotado.\nReturne e tente novamente.');
-      if (fx()) fx().vignette({ enabled: true, intensity: 0.6 });
-
-      // Notifica dungeon.js da derrota
-      if (typeof window.SL_DungeonCombatCallback === 'function') {
-        const cb = window.SL_DungeonCombatCallback;
-        window.SL_DungeonCombatCallback = null;
-        setTimeout(() => cb({ won: false }), 1800);
-      }
+      setText('ci-result-body', 'Você foi derrotado.\nRetorne e tente novamente.');
+      if (fx()) fx().vignette({ enabled:true, intensity:.6 });
     }
   }
 
   function flee() {
     if (!combat.active) return;
+    // Limpa callbacks de dungeon ao fugir
+    _onVictory = null; _onDefeat = null; _dungeonContext = null;
     endCombat(false);
+    const overlay = el('ci-result');
+    if (!overlay) return;
+    overlay.style.display = 'flex';
     el('ci-result-icon').textContent  = '🏃';
     setText('ci-result-title', 'RECUO');
     el('ci-result-title').style.color = 'var(--c-text-dim)';
     setText('ci-result-body', 'Você fugiu da batalha.');
+    refreshDungeonCtx();
   }
 
   function closeResult() {
@@ -620,102 +607,95 @@
   // ============================================================
   // AÇÕES DO JOGADOR
   // ============================================================
+  function getDmgBoost() {
+    if (window._combatDmgBoostCharges > 0) {
+      const boost = window._combatDmgBoost || 1;
+      window._combatDmgBoostCharges--;
+      if (window._combatDmgBoostCharges <= 0) {
+        window._combatDmgBoost = 1;
+        window._combatDmgBoostCharges = 0;
+      }
+      return boost;
+    }
+    return 1;
+  }
+
   function doQuickAttack() {
     if (!combat.active) return;
-    const engine = c9();
-    if (!engine) return;
+    const engine = c9(); if (!engine) return;
+    const lv     = getPlayerLevel();
+    const result = engine.attackQuick({ element:'sombra', baseDamage: 12 + Math.round((lv-1)*2.5) });
+    if (!result.ok) { log(result.reason==='cooldown'?'⏳ Cooldown!':'⚡ Sem stamina!','var(--c-text-faint)'); return; }
+    if (result.missed) { log('❌ Errou! Combo resetado.','var(--c-text-faint)'); return; }
 
-    const lv      = getPlayerLevel();
-    const baseDmg = 12 + Math.round((lv - 1) * 2.5);
-    const result  = engine.attackQuick({ element: 'sombra', baseDamage: baseDmg });
-
-    if (!result.ok) {
-      log(result.reason === 'cooldown' ? '⏳ Cooldown!' : '⚡ Sem stamina!', 'var(--c-text-faint)');
-      return;
-    }
-    if (result.missed) { log('❌ Errou! Combo resetado.', 'var(--c-text-faint)'); return; }
-
-    dealDamageToEnemy(result.dmg);
-
-    const crit  = result.crit;
-    const combo = engine.state.combo.count;
-    log(
-      `⚡ Rápido — ${result.dmg} dano${crit ? ' 💥 CRÍTICO' : ''} [combo ×${combo}]`,
-      crit ? 'var(--c-gold-core)' : 'var(--c-text)',
-    );
+    const boost = getDmgBoost();
+    const dmg   = Math.round(result.dmg * boost);
+    const boostTxt = boost > 1 ? ` ✨×${boost.toFixed(2)}` : '';
+    dealDamageToEnemy(dmg);
+    log(`⚡ Rápido — ${dmg} dano${result.crit?' 💥 CRÍTICO':''}${boostTxt} [combo ×${engine.state.combo.count}]`,
+      result.crit?'var(--c-gold-core)':'var(--c-text)');
     flashEnemyHit();
-    if (fx()) fx().glow({ x: 50, y: 30, color: 'rgba(47,216,255,0.3)' });
+    if (fx()) fx().glow({ x:50, y:30, color:'rgba(47,216,255,0.3)' });
     refreshPlayerHUD();
   }
 
   function doChargedAttack() {
     if (!combat.active) return;
-    const engine = c9();
-    if (!engine) return;
+    const engine = c9(); if (!engine) return;
+    const lv     = getPlayerLevel();
+    const result = engine.attackCharged({ element:'sombra', baseDamage: 22 + Math.round((lv-1)*4) });
+    if (!result.ok) { log(result.reason==='cooldown'?'⏳ Cooldown!':'⚡ Sem stamina!','var(--c-text-faint)'); return; }
+    if (result.missed) { log('❌ Errou! Combo resetado.','var(--c-text-faint)'); return; }
 
-    const lv      = getPlayerLevel();
-    const baseDmg = 22 + Math.round((lv - 1) * 4);
-    const result  = engine.attackCharged({ element: 'sombra', baseDamage: baseDmg });
-
-    if (!result.ok) {
-      log(result.reason === 'cooldown' ? '⏳ Cooldown!' : '⚡ Sem stamina!', 'var(--c-text-faint)');
-      return;
-    }
-    if (result.missed) { log('❌ Errou! Combo resetado.', 'var(--c-text-faint)'); return; }
-
-    dealDamageToEnemy(result.dmg);
-
-    // Conecta ao bridge-etapa11 para o boss reagir a jogo agressivo (chave
-    // 'charged' já era usada por boss-etapa10.js/playerAggroScore, mas nada
-    // no projeto chamava observeCombatAction — a IA do boss nunca enxergava
-    // agressividade do jogador no ataque, só na defesa).
-    if (window.SL_BridgeEtapa11 && typeof window.SL_BridgeEtapa11.observeCombatAction === 'function') {
-      window.SL_BridgeEtapa11.observeCombatAction('charged');
-    }
-
-    const crit = result.crit;
-    log(
-      `💥 Carregado — ${result.dmg} dano${crit ? ' 💥 CRÍTICO' : ''}`,
-      crit ? 'var(--c-gold-core)' : 'var(--c-violet-core)',
-    );
+    const boost = getDmgBoost();
+    const dmg   = Math.round(result.dmg * boost);
+    const boostTxt = boost > 1 ? ` ✨×${boost.toFixed(2)}` : '';
+    dealDamageToEnemy(dmg);
+    log(`💥 Carregado — ${dmg} dano${result.crit?' 💥 CRÍTICO':''}${boostTxt}`,
+      result.crit?'var(--c-gold-core)':'var(--c-violet-core)');
     flashEnemyHit();
-    if (fx()) {
-      fx().explosion({ x: 50, y: 30 });
-      if (crit) fx().bloom({ intensity: 1.2 });
-    }
+    if (fx()) { fx().explosion({ x:50, y:30 }); if (result.crit) fx().bloom({ intensity:1.2 }); }
     refreshPlayerHUD();
   }
 
   function doDefense(type) {
     if (!combat.active) return;
-    if (!combat.incomingAttack) {
-      log('Nenhum ataque chegando.', 'var(--c-text-faint)');
-      return;
-    }
+    if (!combat.incomingAttack) { log('Nenhum ataque chegando.','var(--c-text-faint)'); return; }
     resolveIncoming(type);
   }
 
   function dealDamageToEnemy(dmg) {
     combat.enemyHp = Math.max(0, combat.enemyHp - dmg);
-
-    // Sincroniza com boss engine se for boss
     if (combat.enemy.isBoss && window.SL_BridgeEtapa11) {
       window.SL_BridgeEtapa11.bossDamageFromPlayerAttack({ attackDamage: dmg });
     }
-
     refreshEnemyHUD();
     if (combat.enemyHp <= 0) endCombat(true);
   }
+
+  function useConsumable(itemId) {
+    const shop = window.SL_ShopUI;
+    if (!shop) return;
+    const result = shop.useConsumable(itemId);
+    if (!result.ok) { log(result.reason || 'Sem estoque.','var(--c-text-faint)'); return; }
+    log(`🧪 ${result.item.nome} usado! ${result.effectDesc}`, 'var(--c-azure-core)');
+    refreshPlayerHUD();
+    refreshConsumables();
+  }
+
+  // ============================================================
+  // API PÚBLICA DOS HOOKS DE DUNGEON
+  // ============================================================
+  function setOnVictory(cb)      { _onVictory      = cb; }
+  function setOnDefeat(cb)       { _onDefeat        = cb; }
+  function setDungeonContext(ctx){ _dungeonContext   = ctx; if (el('ci-dungeon-ctx')) refreshDungeonCtx(); }
 
   // ============================================================
   // BOOT
   // ============================================================
   document.addEventListener('DOMContentLoaded', () => {
     inject();
-    // Garante que 'combate' está registrada nas páginas do SPA
-    if (window.ALL_PAGES && !window.ALL_PAGES.includes('combate')) {
-      window.ALL_PAGES.push('combate');
-    }
+    if (window.ALL_PAGES && !window.ALL_PAGES.includes('combate')) window.ALL_PAGES.push('combate');
   });
 
   // ============================================================
@@ -727,8 +707,12 @@
     doQuickAttack,
     doChargedAttack,
     doDefense,
+    useConsumable,
     flee,
     closeResult,
+    // hooks de dungeon
+    setOnVictory,
+    setOnDefeat,
+    setDungeonContext,
   };
-
 })();
